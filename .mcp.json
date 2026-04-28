@@ -1,0 +1,12 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "wsl.exe",
+            "args": [
+                "/home/renan/.config/herd-lite/bin/php",
+                "/home/renan/projetos/avali.ai/application/artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}

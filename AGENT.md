@@ -5,6 +5,10 @@ This document provides essential context and guidelines for AI agents working on
 ## 🚀 Project Overview
 **avali.ai** is a Laravel-based platform designed for academic evaluations and exam management. It leverages AI (Gemini) to assist in processing or generating evaluation materials.
 
+**Key Features:**
+- **Exam Generation System**: Allows teachers to request AI to generate exams based on parameters (questions count, topics) and uploaded supporting materials (PDFs, docs).
+- **Automated Grading System**: Processes student exam submissions (images/PDFs) against an answer key using Gemini Multimodal OCR to automatically grade and provide pedagogical feedback per question.
+
 ## 🛠 Tech Stack
 - **PHP**: 8.4
 - **Framework**: Laravel 13 (v13.x)
@@ -35,6 +39,15 @@ This document provides essential context and guidelines for AI agents working on
 - **Documentation**: Always use `search-docs` before implementing new features to get version-specific advice for Laravel 13 and Flux UI.
 - **Tinker**: Use `php artisan tinker --execute '...'` for quick data verification.
 
+## ⚡ Livewire Single Page Components
+When creating Full Page Components (formerly known as Volt):
+- Use the command `php artisan make:livewire pages::component-name`.
+- This generates a file in `resources/views/pages/` using the `⚡` prefix (e.g., `⚡component-name.blade.php`).
+- **NO VOLT FACADES**: Do not import or use `Livewire\Volt\Component` or `Livewire\Volt\Volt`. 
+- **Component Definition**: The class must extend `Livewire\Component` natively. Example: `new class extends Component` and import `use Livewire\Component;`.
+- **Routing**: In `routes/web.php`, route to these components using the native `Route::livewire()` method and the `pages::` namespace prefix. Do not include the `⚡`.
+  - Example: `Route::livewire('/path', 'pages::folder.component-name');`
+
 ## 📝 Key Commands
 ```bash
 # Development
@@ -48,9 +61,15 @@ vendor/bin/pint         # Format code
 # Discovery
 php artisan route:list  # View all routes
 php artisan list        # View all artisan commands
+
+# Create Full Page Components
+php artisan make:livewire <Component>
 ```
 
 ## ⚠️ Important Rules
 - **No Placeholders**: Never use placeholder images or text. Use the `generate_image` tool if UI assets are needed.
 - **Security**: Ensure all routes are protected by appropriate middleware (e.g., `auth`).
-- **Aesthetics**: Flux UI is used for a "premium" feel. Ensure components are composed correctly and look modern.
+- **Aesthetics & UI Components**: Flux UI is strictly used for a "premium" feel. 
+  - **NEVER** use standard HTML form elements like `<input>`, `<select>`, `<button>`, or manual error spans (`@error`). 
+  - **ALWAYS** use their Flux equivalents (e.g., `<flux:input>`, `<flux:select>`, `<flux:button>`, `<flux:error>`, `<flux:card>`). Flux components automatically handle styling, dark mode, labels, and validation errors.
+- **Sidebar Integration**: Whenever you are asked to create a new functionality, page, or module in the system, you **MUST** automatically add a link to it in the Sidebar (`resources/views/layouts/sidebar.blade.php`), organizing it properly within groups if necessary.

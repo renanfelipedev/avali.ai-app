@@ -17,13 +17,14 @@
 
     <!-- Styles / Scripts -->
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif
 
-    <!-- @fluxAppearance -->
+    {{-- @fluxAppearance --}}
 </head>
 
-<body>
+<body
+    class="min-h-screen bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white">
     @yield('main')
 
     @livewireScripts

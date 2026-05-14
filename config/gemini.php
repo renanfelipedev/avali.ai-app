@@ -36,4 +36,13 @@ return [
     */
 
     'request_timeout' => env('GEMINI_REQUEST_TIMEOUT', 30),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Model
+    |--------------------------------------------------------------------------
+    |
+    | The default model to be used in generative tasks.
+    */
+    'default_model' => env('GEMINI_DEFAULT_MODEL', 'gemini-2.5-pro'),
 ];

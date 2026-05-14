@@ -32,4 +32,6 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/evaluations', 'pages::evaluations.index')->name('evaluations.index');
     Route::livewire('/evaluations/create', 'pages::evaluations.create')->name('evaluations.create');
     Route::livewire('/evaluations/{evaluation}', 'pages::evaluations.show')->name('evaluations.show');
+    // Módulo de Gerenciamento de Tarefas em Background
+    Route::livewire('/tasks', 'pages::tasks.index')->name('tasks.index');
 });

@@ -56,16 +56,12 @@ new #[Layout('layouts.main')] class extends Component {
             'status' => 'pending',
         ]);
 
-        // Processar a geração da prova via IA síncronamente
-        $success = $service->generateExam($generationRequest);
+        // Dispatch background job
+        \App\Jobs\GenerateExamJob::dispatch($generationRequest);
 
-        if ($success) {
-            session()->flash('status', 'A Prova foi gerada com sucesso pela Inteligência Artificial!');
-        } else {
-            session()->flash('error', 'Houve um erro na comunicação com a IA para gerar a prova. Verifique os logs.');
-        }
+        session()->flash('status', 'A solicitação de geração de prova foi enviada para processamento em segundo plano.');
 
-        return redirect()->route('exams.index');
+        return redirect()->route('tasks.index');
     }
 };
 ?>

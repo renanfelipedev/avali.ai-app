@@ -97,6 +97,8 @@ PROMPT;
                     'user_id' => $request->user_id,
                 ],
             ]);
+            // Update request status
+            $request->update(['status' => 'completed']);
 
             return true;
         } catch (Throwable $e) {

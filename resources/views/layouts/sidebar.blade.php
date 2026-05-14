@@ -18,7 +18,28 @@
             <flux:sidebar.group expandable heading="Módulo de Administração">
                 <flux:sidebar.item icon="users" href="{{ route('users.index') }}">Usuários
                 </flux:sidebar.item>
+                <flux:sidebar.item icon="cpu-chip" href="{{ route('tasks.index') }}">
+                    Tarefas Ativas
+                    @php
+                        $activeTasks = \App\Models\ExamGenerationRequest::whereIn('status', ['pending', 'processing'])->count() + 
+                                      \App\Models\ExamEvaluation::where('status', 'processing')->count();
+                    @endphp
+                    @if($activeTasks > 0)
+                        <flux:badge size="sm" color="amber" inset="top bottom" class="animate-pulse">{{ $activeTasks }}</flux:badge>
+                    @endif
+                </flux:sidebar.item>
             </flux:sidebar.group>
+        @else
+            <flux:sidebar.item icon="cpu-chip" href="{{ route('tasks.index') }}">
+                Tarefas Ativas
+                @php
+                    $activeTasks = \App\Models\ExamGenerationRequest::where('user_id', auth()->id())->whereIn('status', ['pending', 'processing'])->count() + 
+                                  \App\Models\ExamEvaluation::where('user_id', auth()->id())->where('status', 'processing')->count();
+                @endphp
+                @if($activeTasks > 0)
+                    <flux:badge size="sm" color="amber" inset="top bottom" class="animate-pulse">{{ $activeTasks }}</flux:badge>
+                @endif
+            </flux:sidebar.item>
         @endcan
 
         <flux:sidebar.group expandable heading="Módulo de Provas">

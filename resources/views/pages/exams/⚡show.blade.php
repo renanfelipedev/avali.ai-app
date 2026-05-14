@@ -64,7 +64,11 @@ new #[Layout('layouts.main')] class extends Component
 
     <flux:card>
         <!-- Conteúdo Renderizado da Prova -->
-        <div class="prose prose-zinc dark:prose-invert max-w-none">
+        <div class="prose prose-zinc dark:prose-invert max-w-none 
+            prose-h3:mt-12 prose-h3:mb-6 prose-h3:border-b prose-h3:pb-2 prose-h3:border-zinc-200 dark:prose-h3:border-zinc-800
+            prose-p:text-zinc-700 dark:prose-p:text-zinc-300
+            prose-li:my-2 prose-ul:list-none prose-ul:pl-0
+            [&_ul_li]:flex [&_ul_li]:gap-2">
             {!! $htmlContent !!}
         </div>
     </flux:card>

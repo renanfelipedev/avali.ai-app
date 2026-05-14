@@ -46,7 +46,9 @@ new #[Layout('layouts.main')] class extends Component
         // Delegate complex processing to service (DRY & KISS)
         $submissionService->processUploads($evaluation, $this->student_submissions);
 
-        return redirect()->route('evaluations.show', ['evaluation' => $evaluation->id]);
+        session()->flash('status', 'A correção das provas foi iniciada em segundo plano.');
+
+        return redirect()->route('tasks.index');
     }
 };
 ?>

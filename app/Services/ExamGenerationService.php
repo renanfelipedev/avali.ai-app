@@ -13,6 +13,13 @@ use Throwable;
 
 class ExamGenerationService
 {
+    protected $aiService;
+
+    public function __construct(AiService $aiService)
+    {
+        $this->aiService = $aiService;
+    }
+
     public function generateExam(ExamGenerationRequest $request): bool
     {
         $request->update(['status' => 'processing']);
@@ -28,7 +35,8 @@ class ExamGenerationService
 $promptBase
 
 ## Parâmetros da Geração:
-- Quantidade de Questões: {$request->questions_count}
+- Questões Objetivas: {$request->objective_count}
+- Questões Discursivas: {$request->discursive_count}
 - Temas: {$topics}
 
 Sua resposta final deve ser exclusivamente a prova formulada em Markdown.
@@ -55,9 +63,8 @@ PROMPT;
                 }
             }
 
-            // Call Gemini
-            $model = config('gemini.default_model');
-            $response = Gemini::generativeModel($model)->generateContent(...$parts);
+            // Call Gemini via Fallback Service
+            $response = $this->aiService->generateContent($parts);
             $generatedText = trim($response->text());
 
             if (empty($generatedText)) {
@@ -81,10 +88,14 @@ PROMPT;
                 'file_size' => strlen($generatedText),
             ]);
 
-            // Update request
-            $request->update([
-                'generated_exam_id' => $exam->id,
-                'status' => 'completed',
+            // Log successful generation with tokens
+            \App\Models\AiLog::create([
+                'module' => 'ExamGeneration',
+                'tokens_used' => $response->usageMetadata->totalTokenCount ?? 0,
+                'request_payload' => [
+                    'exam_id' => $exam->id,
+                    'user_id' => $request->user_id,
+                ],
             ]);
 
             return true;

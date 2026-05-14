@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 
-#[Fillable(['user_id', 'questions_count', 'topics', 'supporting_materials', 'status', 'error_message', 'generated_exam_id'])]
+#[Fillable(['user_id', 'questions_count', 'objective_count', 'discursive_count', 'topics', 'supporting_materials', 'status', 'error_message', 'generated_exam_id'])]
 class ExamGenerationRequest extends Model
 {
 

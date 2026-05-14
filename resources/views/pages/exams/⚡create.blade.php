@@ -6,16 +6,17 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-new #[Layout('layouts.main')] class extends Component
-{
+new #[Layout('layouts.main')] class extends Component {
     use WithFileUploads;
 
-    public $questions_count = 10;
+    public $objective_count = 5;
+    public $discursive_count = 2;
     public $topics = '';
     public $files = [];
 
     protected $rules = [
-        'questions_count' => 'required|integer|min:1|max:50',
+        'objective_count' => 'required|integer|min:0|max:50',
+        'discursive_count' => 'required|integer|min:0|max:50',
         'topics' => 'required|string',
         'files.*' => 'nullable|file|max:10240', // 10MB max per file
     ];
@@ -23,6 +24,11 @@ new #[Layout('layouts.main')] class extends Component
     public function save(ExamGenerationService $service)
     {
         $this->validate();
+
+        if ($this->objective_count == 0 && $this->discursive_count == 0) {
+            $this->addError('objective_count', 'Pelo menos uma questão deve ser solicitada.');
+            return;
+        }
 
         $storedFiles = [];
         foreach ($this->files as $file) {
@@ -42,7 +48,9 @@ new #[Layout('layouts.main')] class extends Component
 
         $generationRequest = ExamGenerationRequest::create([
             'user_id' => auth()->id(),
-            'questions_count' => $this->questions_count,
+            'questions_count' => $this->objective_count + $this->discursive_count,
+            'objective_count' => $this->objective_count,
+            'discursive_count' => $this->discursive_count,
             'topics' => explode(',', $this->topics),
             'supporting_materials' => $storedFiles,
             'status' => 'pending',
@@ -57,12 +65,12 @@ new #[Layout('layouts.main')] class extends Component
             session()->flash('error', 'Houve um erro na comunicação com a IA para gerar a prova. Verifique os logs.');
         }
 
-        return redirect()->route('home');
+        return redirect()->route('exams.index');
     }
 };
 ?>
 
-<div class="max-w-2xl">
+<div class="">
     <form wire:submit="save" class="space-y-6">
         <flux:card class="space-y-6">
             <div>
@@ -70,26 +78,21 @@ new #[Layout('layouts.main')] class extends Component
                 <flux:subheading>Informe os parâmetros para a IA gerar sua prova.</flux:subheading>
             </div>
 
-            <flux:input 
-                wire:model="questions_count" 
-                label="Quantidade de Questões" 
-                type="number" 
-                placeholder="Ex: 10" 
-                min="1" 
-                max="50"
-            />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <flux:input wire:model="objective_count" label="Questões Objetivas" type="number" placeholder="Ex: 5"
+                    min="0" max="50" />
+                <flux:input wire:model="discursive_count" label="Questões Discursivas" type="number"
+                    placeholder="Ex: 2" min="0" max="50" />
+            </div>
 
-            <flux:textarea 
-                wire:model="topics" 
-                label="Temas / Assuntos" 
-                placeholder="Ex: Cálculo I, Derivadas, Integrais (separe por vírgula)" 
-                rows="3"
-            />
+            <flux:textarea wire:model="topics" label="Temas / Assuntos"
+                placeholder="Ex: Cálculo I, Derivadas, Integrais (separe por vírgula)" rows="3" />
 
             <div>
                 <flux:heading size="md" class="mb-2">Materiais de Apoio</flux:heading>
-                <flux:subheading class="mb-4">Envie livros, artigos ou provas antigas (PDF, DOCX, Imagens até 10MB cada).</flux:subheading>
-                
+                <flux:subheading class="mb-4">Envie livros, artigos ou provas antigas (PDF, DOCX, Imagens até 10MB
+                    cada).</flux:subheading>
+
                 <flux:input type="file" wire:model="files" multiple accept=".pdf,.docx,image/*" />
             </div>
 

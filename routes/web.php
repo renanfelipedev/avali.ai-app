@@ -16,6 +16,10 @@ Route::middleware('auth')->group(function () {
     Route::any('/logout', [SessionController::class, 'destroy'])->name('logout');
     Route::get('/home', HomeController::class)->name('home');
 
+    Route::livewire('/users', 'pages::users.index')
+        ->name('users.index')
+        ->middleware('can:admin');
+
     // Módulo de Geração de Provas (IA)
     Route::livewire('/exams', 'pages::exams.index')->name('exams.index');
     Route::livewire('/exams/create', 'pages::exams.create')->name('exams.create');

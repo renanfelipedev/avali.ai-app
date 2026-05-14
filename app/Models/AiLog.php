@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 
-#[Fillable(['module', 'error_message', 'request_payload'])]
+#[Fillable(['module', 'tokens_used', 'error_message', 'request_payload'])]
 class AiLog extends Model
 {
     /**

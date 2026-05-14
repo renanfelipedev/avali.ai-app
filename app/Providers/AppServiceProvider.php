@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -24,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        Gate::define('admin', fn (User $user) => $user->isAdmin());
     }
 
     /**

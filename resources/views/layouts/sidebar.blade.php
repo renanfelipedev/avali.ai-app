@@ -13,6 +13,14 @@
 
     <flux:sidebar.nav>
         <flux:sidebar.item icon="home" href="/home">Home</flux:sidebar.item>
+
+        @can('admin')
+            <flux:sidebar.group expandable heading="Módulo de Administração">
+                <flux:sidebar.item icon="users" href="{{ route('users.index') }}">Usuários
+                </flux:sidebar.item>
+            </flux:sidebar.group>
+        @endcan
+
         <flux:sidebar.group expandable heading="Módulo de Provas">
             <flux:sidebar.item icon="document-duplicate" href="{{ route('exams.index') }}">Listar Provas
             </flux:sidebar.item>

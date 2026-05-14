@@ -44,5 +44,19 @@ return [
     |
     | The default model to be used in generative tasks.
     */
-    'default_model' => env('GEMINI_DEFAULT_MODEL', 'gemini-2.5-pro'),
+    'default_model' => env('GEMINI_DEFAULT_MODEL', 'gemini-2.5-flash'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fallback Models
+    |--------------------------------------------------------------------------
+    |
+    | A list of models to try in sequence if the default model's quota is exceeded.
+    */
+    'fallback_models' => [
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-3.1-flash-lite',
+        'gemini-flash-lite-latest',
+    ],
 ];

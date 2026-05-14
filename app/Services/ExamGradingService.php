@@ -13,6 +13,13 @@ use Throwable;
 
 class ExamGradingService
 {
+    protected $aiService;
+
+    public function __construct(AiService $aiService)
+    {
+        $this->aiService = $aiService;
+    }
+
     public function evaluateSubmission(ExamEvaluation $evaluation, ExamSubmission $submission): bool
     {
         $this->verifyAiAccess();
@@ -29,6 +36,7 @@ class ExamGradingService
             $parts = [$prompt];
 
             // Conditionally load answer key blob
+            $hasAnswerKey = !empty($evaluation->answer_key_file_path);
             if ($hasAnswerKey) {
                 $answerKeyPath = Storage::disk('public')->path($evaluation->answer_key_file_path);
                 $parts[] = new Blob(
@@ -48,9 +56,8 @@ class ExamGradingService
                 );
             }
 
-            // Use configured model
-            $model = config('gemini.default_model');
-            $response = Gemini::generativeModel($model)->generateContent(...$parts);
+            // Use Fallback Service
+            $response = $this->aiService->generateContent($parts);
 
             $text = trim($response->text());
             
@@ -73,6 +80,16 @@ class ExamGradingService
                 'feedback_data' => $result['questions'] ?? [],
                 'transcription' => $result['full_transcription'] ?? null,
                 'status' => 'completed',
+            ]);
+
+            // Log successful grading with tokens
+            \App\Models\AiLog::create([
+                'module' => 'ExamGrading',
+                'tokens_used' => $response->usageMetadata->totalTokenCount ?? 0,
+                'request_payload' => [
+                    'exam_submission_id' => $submission->id,
+                    'exam_evaluation_id' => $evaluation->id,
+                ],
             ]);
 
             return true;

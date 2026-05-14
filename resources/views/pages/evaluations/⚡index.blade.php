@@ -21,6 +21,10 @@ new #[Layout('layouts.main')] class extends Component
 
     public function deleteEvaluation(ExamEvaluation $evaluation)
     {
+        if ($evaluation->user_id !== auth()->id()) {
+            return;
+        }
+
         $evaluation->delete();
     }
 };

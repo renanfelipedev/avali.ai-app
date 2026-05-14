@@ -1,0 +1,111 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\ExamEvaluation;
+use App\Models\ExamSubmission;
+use App\Jobs\EvaluateSubmissionJob;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
+use Illuminate\Http\UploadedFile;
+
+class SubmissionService
+{
+    protected array $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'docx', 'txt'];
+
+    /**
+     * Process a collection of uploaded files or ZIPs.
+     */
+    public function processUploads(ExamEvaluation $evaluation, array $uploads): void
+    {
+        $delay = 0;
+
+        foreach ($uploads as $file) {
+            $extension = strtolower($file->getClientOriginalExtension());
+
+            if ($extension === 'zip') {
+                $delay = $this->processZip($evaluation, $file, $delay);
+            } else {
+                $this->createAndDispatch($evaluation, $file, $delay);
+                $delay += 5;
+            }
+        }
+    }
+
+    /**
+     * Process a ZIP file containing multiple submissions.
+     */
+    protected function processZip(ExamEvaluation $evaluation, UploadedFile $zipFile, int $startDelay): int
+    {
+        $delay = $startDelay;
+        $zip = new \ZipArchive;
+
+        if ($zip->open($zipFile->getRealPath()) === TRUE) {
+            $tempDir = storage_path('app/public/evaluations/temp_' . uniqid());
+            $zip->extractTo($tempDir);
+            $zip->close();
+            
+            $files = File::allFiles($tempDir);
+            foreach ($files as $file) {
+                $ext = strtolower($file->getExtension());
+                if (in_array($ext, $this->allowedExtensions)) {
+                    $originalFilename = $file->getFilename();
+                    $newFilename = uniqid() . '_' . $originalFilename;
+                    $newPath = 'evaluations/submissions/' . $newFilename;
+                    
+                    Storage::disk('public')->put($newPath, file_get_contents($file->getRealPath()));
+                    
+                    $submission = ExamSubmission::create([
+                        'exam_evaluation_id' => $evaluation->id,
+                        'student_name' => $this->extractNameFromFilename($originalFilename),
+                        'student_file_path' => $newPath,
+                        'status' => 'pending',
+                    ]);
+                    
+                    EvaluateSubmissionJob::dispatch($evaluation, $submission)->delay(now()->addSeconds($delay));
+                    $delay += 5;
+                }
+            }
+            File::deleteDirectory($tempDir);
+        }
+
+        return $delay;
+    }
+
+    /**
+     * Create a single submission and dispatch its job.
+     */
+    protected function createAndDispatch(ExamEvaluation $evaluation, UploadedFile $file, int $delay): void
+    {
+        $originalFilename = $file->getClientOriginalName();
+        $path = $file->store('evaluations/submissions', 'public');
+
+        $submission = ExamSubmission::create([
+            'exam_evaluation_id' => $evaluation->id,
+            'student_name' => $this->extractNameFromFilename($originalFilename),
+            'student_file_path' => $path,
+            'status' => 'pending',
+        ]);
+
+        EvaluateSubmissionJob::dispatch($evaluation, $submission)->delay(now()->addSeconds($delay));
+    }
+
+    /**
+     * Extract a potential student name from a filename.
+     */
+    public function extractNameFromFilename(string $filename): ?string
+    {
+        $name = pathinfo($filename, PATHINFO_FILENAME);
+        $remove = ['prova', 'avaliacao', 'questionario', 'trabalho', 'exercicio', 'bimestre', 'semestre', 'final', 'doc', 'pdf', 'docx', 'txt'];
+        
+        $name = str_replace(['_', '-', '.', '(', ')', '[', ']', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], ' ', $name);
+        
+        foreach ($remove as $word) {
+            $name = preg_replace('/\b' . $word . '\b/i', '', $name);
+        }
+
+        $name = trim(ucwords(strtolower(preg_replace('/\s+/', ' ', $name))));
+
+        return $name ?: null;
+    }
+}

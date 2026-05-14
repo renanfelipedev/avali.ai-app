@@ -3,27 +3,27 @@
 use App\Models\ExamEvaluation;
 use App\Models\ExamSubmission;
 use App\Jobs\EvaluateSubmissionJob;
+use App\Traits\HasOwnership;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 new #[Layout('layouts.main')] class extends Component
 {
+    use HasOwnership;
+
     public ExamEvaluation $evaluation;
 
     public function mount(ExamEvaluation $evaluation)
     {
-        $this->evaluation = $evaluation->load(['submissions' => function ($query) {
-            $query->orderBy('student_name', 'asc')->orderBy('id', 'asc');
-        }]);
+        $this->authorizeOwnership($evaluation);
+
+        $this->loadSubmissions();
     }
 
     public function refreshSubmissions()
     {
-        $this->evaluation->load(['submissions' => function ($query) {
-            $query->orderBy('student_name', 'asc')->orderBy('id', 'asc');
-        }]);
+        $this->loadSubmissions();
 
-        // If all submissions are done, we could update the evaluation status
         $total = $this->evaluation->submissions->count();
         $completed = $this->evaluation->submissions->whereIn('status', ['completed', 'error'])->count();
 
@@ -34,26 +34,40 @@ new #[Layout('layouts.main')] class extends Component
 
     public function retryErrors()
     {
+        $this->authorizeOwnership($this->evaluation);
+
         $failedSubmissions = $this->evaluation->submissions()->where('status', 'error')->get();
 
         foreach ($failedSubmissions as $submission) {
-            $submission->update(['status' => 'pending', 'error_message' => null]);
-            EvaluateSubmissionJob::dispatch($this->evaluation, $submission);
+            $this->requeueSubmission($submission);
         }
 
         $this->evaluation->update(['status' => 'processing']);
-        $this->refreshSubmissions();
+        $this->loadSubmissions();
     }
 
     public function retrySubmission($submissionId)
     {
         $submission = ExamSubmission::findOrFail($submissionId);
-        $submission->update(['status' => 'pending', 'error_message' => null]);
-        
-        EvaluateSubmissionJob::dispatch($this->evaluation, $submission);
+        $this->authorizeOwnership($submission->examEvaluation);
+
+        $this->requeueSubmission($submission);
         
         $this->evaluation->update(['status' => 'processing']);
-        $this->refreshSubmissions();
+        $this->loadSubmissions();
+    }
+
+    protected function loadSubmissions(): void
+    {
+        $this->evaluation->load(['submissions' => function ($query) {
+            $query->orderBy('student_name', 'asc')->orderBy('id', 'asc');
+        }]);
+    }
+
+    protected function requeueSubmission(ExamSubmission $submission): void
+    {
+        $submission->update(['status' => 'pending', 'error_message' => null]);
+        EvaluateSubmissionJob::dispatch($this->evaluation, $submission);
     }
 };
 ?>

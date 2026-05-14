@@ -1,13 +1,10 @@
 <?php
 
 use App\Models\ExamEvaluation;
-use App\Models\ExamSubmission;
-use App\Jobs\EvaluateSubmissionJob;
+use App\Services\SubmissionService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\File;
 
 new #[Layout('layouts.main')] class extends Component
 {
@@ -29,7 +26,7 @@ new #[Layout('layouts.main')] class extends Component
         ];
     }
 
-    public function save()
+    public function save(SubmissionService $submissionService)
     {
         $this->validate();
         $this->isProcessing = true;
@@ -46,54 +43,8 @@ new #[Layout('layouts.main')] class extends Component
             'status' => 'processing',
         ]);
 
-        $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'docx', 'txt'];
-        $delay = 0;
-
-        // Store and process each submission
-        foreach ($this->student_submissions as $submissionFile) {
-            $extension = strtolower($submissionFile->getClientOriginalExtension());
-
-            if ($extension === 'zip') {
-                $zip = new \ZipArchive;
-                if ($zip->open($submissionFile->getRealPath()) === TRUE) {
-                    $tempDir = storage_path('app/public/evaluations/temp_' . uniqid());
-                    $zip->extractTo($tempDir);
-                    $zip->close();
-                    
-                    $files = File::allFiles($tempDir);
-                    foreach ($files as $file) {
-                        $ext = strtolower($file->getExtension());
-                        if (in_array($ext, $allowedExtensions)) {
-                            $newFilename = uniqid() . '_' . $file->getFilename();
-                            $newPath = 'evaluations/submissions/' . $newFilename;
-                            
-                            Storage::disk('public')->put($newPath, file_get_contents($file->getRealPath()));
-                            
-                            $submission = ExamSubmission::create([
-                                'exam_evaluation_id' => $evaluation->id,
-                                'student_file_path' => $newPath,
-                                'status' => 'pending',
-                            ]);
-                            
-                            EvaluateSubmissionJob::dispatch($evaluation, $submission)->delay(now()->addSeconds($delay));
-                            $delay += 5; // Stagger by 5 seconds
-                        }
-                    }
-                    File::deleteDirectory($tempDir);
-                }
-            } else {
-                $submissionPath = $submissionFile->store('evaluations/submissions', 'public');
-
-                $submission = ExamSubmission::create([
-                    'exam_evaluation_id' => $evaluation->id,
-                    'student_file_path' => $submissionPath,
-                    'status' => 'pending',
-                ]);
-
-                EvaluateSubmissionJob::dispatch($evaluation, $submission)->delay(now()->addSeconds($delay));
-                $delay += 5; // Stagger by 5 seconds
-            }
-        }
+        // Delegate complex processing to service (DRY & KISS)
+        $submissionService->processUploads($evaluation, $this->student_submissions);
 
         return redirect()->route('evaluations.show', ['evaluation' => $evaluation->id]);
     }

@@ -20,28 +20,7 @@ class ExamGradingService
         $submission->update(['status' => 'processing']);
 
         try {
-            // Load Prompt Reference
-            $promptReferencePath = base_path('.docs/prompts/system_grading_expert.md');
-            $promptBase = file_exists($promptReferencePath) ? file_get_contents($promptReferencePath) : 'Atue como um Especialista em Avaliação Educacional.';
-
-            $criteria = $evaluation->grading_criteria ?? 'Nenhum critério específico fornecido. Avalie de 0 a 10 por padrão.';
-            
-            $hasAnswerKey = !empty($evaluation->answer_key_file_path);
-
-            $instruction = $hasAnswerKey 
-                ? "IMPORTANTE: O Documento A (Gabarito) é o primeiro arquivo fornecido. O Documento B (Prova do Aluno) é o segundo arquivo fornecido."
-                : "IMPORTANTE: Não há gabarito fornecido. Avalie a Prova do Aluno (único arquivo fornecido) utilizando seu conhecimento especialista sobre a disciplina, aplicando rigorosamente os critérios definidos.";
-
-            $prompt = <<<PROMPT
-$promptBase
-
-CRITÉRIO DE PONTUAÇÃO ESPECÍFICO DESTA AVALIAÇÃO:
-$criteria
-
-$instruction
-Extraia a nota e o feedback em formato JSON exatamente conforme as instruções.
-Não inclua crases (```json) ou texto Markdown adicional na resposta, apenas o JSON válido.
-PROMPT;
+            $prompt = $this->buildSystemPrompt($evaluation);
 
             // Load student file
             $studentFilePath = Storage::disk('public')->path($submission->student_file_path);
@@ -89,7 +68,7 @@ PROMPT;
             $result = $data[0] ?? $data;
 
             $submission->update([
-                'student_name' => $result['student_name'] ?? 'Aluno Desconhecido',
+                'student_name' => $result['student_name'] ?? ($submission->student_name ?: 'Aluno Desconhecido'),
                 'final_grade' => $result['final_grade'] ?? 0,
                 'feedback_data' => $result['questions'] ?? [],
                 'transcription' => $result['full_transcription'] ?? null,
@@ -184,6 +163,30 @@ PROMPT;
         if (empty($apiKey)) {
             throw new \Exception('Chave de API do Gemini não configurada. Verifique o arquivo .env');
         }
+    }
+
+    private function buildSystemPrompt(ExamEvaluation $evaluation): string
+    {
+        $promptReferencePath = base_path('.docs/prompts/system_grading_expert.md');
+        $promptBase = file_exists($promptReferencePath) ? file_get_contents($promptReferencePath) : 'Atue como um Especialista em Avaliação Educacional.';
+
+        $criteria = $evaluation->grading_criteria ?? 'Nenhum critério específico fornecido. Avalie de 0 a 10 por padrão.';
+        $hasAnswerKey = !empty($evaluation->answer_key_file_path);
+
+        $instruction = $hasAnswerKey 
+            ? "IMPORTANTE: O Documento A (Gabarito) é o primeiro arquivo fornecido. O Documento B (Prova do Aluno) é o segundo arquivo fornecido."
+            : "IMPORTANTE: Não há gabarito fornecido. Avalie a Prova do Aluno (único arquivo fornecido) utilizando seu conhecimento especialista sobre a disciplina, aplicando rigorosamente os critérios definidos.";
+
+        return <<<PROMPT
+$promptBase
+
+CRITÉRIO DE PONTUAÇÃO ESPECÍFICO DESTA AVALIAÇÃO:
+$criteria
+
+$instruction
+Extraia a nota e o feedback em formato JSON exatamente conforme as instruções.
+Não inclua crases (```json) ou texto Markdown adicional na resposta, apenas o JSON válido.
+PROMPT;
     }
 
 }

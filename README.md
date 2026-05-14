@@ -18,8 +18,8 @@ O **avali.ai** é uma plataforma revolucionária que utiliza Inteligência Artif
 
 O avali.ai é construído sobre as fundações mais robustas do desenvolvimento moderno:
 
-- **Framework**: Laravel 11
-- **Frontend**: Livewire 3 + Flux UI
+- **Framework**: Laravel 13
+- **Frontend**: Livewire 4 + Flux UI 2.x
 - **IA**: Google Gemini API
 - **Fila**: Redis / Database Queues
 - **Processamento de Doc**: PhpWord & OCR Multimodal
@@ -27,7 +27,7 @@ O avali.ai é construído sobre as fundações mais robustas do desenvolvimento 
 ## 🚀 Como Começar?
 
 ### Pré-requisitos
-- PHP 8.2+
+- PHP 8.3+
 - Composer
 - Uma chave de API do [Google AI Studio](https://aistudio.google.com/app/apikey)
 

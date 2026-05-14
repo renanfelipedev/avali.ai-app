@@ -10,7 +10,7 @@ This document provides essential context and guidelines for AI agents working on
 - **Automated Grading System**: Processes student exam submissions (images/PDFs) against an answer key using Gemini Multimodal OCR to automatically grade and provide pedagogical feedback per question.
 
 ## 🛠 Tech Stack
-- **PHP**: 8.4
+- **PHP**: 8.3
 - **Framework**: Laravel 13 (v13.x)
 - **Frontend**: Livewire 4, Flux UI v2 (Premium Component Library)
 - **Styling**: Tailwind CSS (integrated via Flux UI)

@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        user: renan
+        user: ${USER}
         uid: 1000
     image: avaliai-app
     container_name: avaliai-app

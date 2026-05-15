@@ -23,6 +23,11 @@ RUN apk add --no-cache \
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql pdo_pgsql pdo_sqlite mbstring exif pcntl bcmath gd zip intl
 
+# Install Redis extension
+RUN apk add --no-cache $PHPIZE_DEPS \
+    && pecl install redis \
+    && docker-php-ext-enable redis
+
 # Copy custom php config
 COPY .docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 

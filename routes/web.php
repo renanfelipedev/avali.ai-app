@@ -34,4 +34,11 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/evaluations/{evaluation}', 'pages::evaluations.show')->name('evaluations.show');
     // Módulo de Gerenciamento de Tarefas em Background
     Route::livewire('/tasks', 'pages::tasks.index')->name('tasks.index');
+
+    // Application Health (Production Only)
+    if (app()->isProduction()) {
+        Route::livewire('/health', 'pages::health.index')
+            ->name('health')
+            ->middleware('can:admin');
+    }
 });

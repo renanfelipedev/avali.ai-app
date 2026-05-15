@@ -28,6 +28,9 @@
                         <flux:badge size="sm" color="amber" inset="top bottom" class="animate-pulse">{{ $activeTasks }}</flux:badge>
                     @endif
                 </flux:sidebar.item>
+                @if (app()->isProduction())
+                    <flux:sidebar.item icon="heart" href="{{ route('health') }}">Saúde do Sistema</flux:sidebar.item>
+                @endif
             </flux:sidebar.group>
         @else
             <flux:sidebar.item icon="cpu-chip" href="{{ route('tasks.index') }}">

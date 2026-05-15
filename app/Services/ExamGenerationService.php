@@ -39,7 +39,7 @@ $promptBase
 - Questões Discursivas: {$request->discursive_count}
 - Temas: {$topics}
 
-Sua resposta final deve ser exclusivamente a prova formulada em Markdown.
+Sua resposta final deve ser exclusivamente a prova formulada em JSON puro.
 PROMPT;
 
             // Prepare Gemini parts
@@ -53,7 +53,7 @@ PROMPT;
                 if (isset($material['path']) && Storage::disk('public')->exists($material['path'])) {
                     $filePath = Storage::disk('public')->path($material['path']);
                     $mime = $this->getMimeType($filePath);
-                    
+
                     if ($mime) {
                         $parts[] = new Blob(
                             mimeType: $mime,
@@ -66,25 +66,44 @@ PROMPT;
             // Call Gemini via Fallback Service
             $response = $this->aiService->generateContent($parts);
             $generatedText = trim($response->text());
+            
+            // Extract JSON from potential Markdown code blocks
+            if (preg_match('/```json\s*(.*?)\s*```/s', $generatedText, $matches)) {
+                $generatedText = $matches[1];
+            }
 
             if (empty($generatedText)) {
                 throw new \Exception('O Gemini retornou um texto vazio.');
             }
 
-            // Save the generated exam as a Markdown file
-            $fileName = 'exam_' . Str::uuid() . '.md';
-            $filePath = 'generated_exams/' . $fileName;
+            // Interpret JSON using PHP tools to validate and extract data
+            $examData = json_decode($generatedText, true);
             
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // Tentar limpar possíveis sujeiras antes ou depois do JSON caso o regex tenha falhado parcialmente
+                $cleanJson = preg_replace('/^[^{]*({.*})[^}]*$/s', '$1', $generatedText);
+                $examData = json_decode($cleanJson, true);
+                
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('O retorno da IA não é um JSON válido: ' . json_last_error_msg());
+                }
+                $generatedText = $cleanJson;
+            }
+
+            // Save the generated exam as a JSON file
+            $fileName = 'exam_' . Str::uuid() . '.json';
+            $filePath = 'generated_exams/' . $fileName;
+
             Storage::disk('public')->put($filePath, $generatedText);
 
             // Create the Exam record
             $exam = Exam::create([
                 'user_id' => $request->user_id,
-                'title' => 'Prova Gerada: ' . Str::limit($topics, 50),
+                'title' => $examData['title'] ?? ('Prova Gerada: ' . Str::limit($topics, 50)),
                 'description' => 'Prova de ' . $request->questions_count . ' questões. Temas: ' . $topics,
                 'file_path' => $filePath,
                 'original_name' => $fileName,
-                'mime_type' => 'text/markdown',
+                'mime_type' => 'application/json',
                 'file_size' => strlen($generatedText),
             ]);
 

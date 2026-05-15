@@ -28,4 +28,15 @@ class GenerateExamJob implements ShouldQueue
     {
         $service->generateExam($this->request);
     }
+
+    /**
+     * Handle a job failure.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        $this->request->update([
+            'status' => 'error',
+            'error_message' => 'O processamento expirou ou falhou: ' . $exception->getMessage(),
+        ]);
+    }
 }

@@ -8,6 +8,48 @@ use Livewire\Component;
 
 new #[Layout('layouts.main')] class extends Component
 {
+    public function mount()
+    {
+        $this->cleanupStuckTasks();
+    }
+
+    protected function cleanupStuckTasks()
+    {
+        $timeout = now()->subMinutes(15);
+
+        // Cleanup Generation Requests
+        ExamGenerationRequest::where('user_id', auth()->id())
+            ->whereIn('status', ['pending', 'processing'])
+            ->where('updated_at', '<', $timeout)
+            ->update([
+                'status' => 'error',
+                'error_message' => 'Tempo limite excedido (15 min). A solicitação foi cancelada automaticamente.'
+            ]);
+
+        // Cleanup Submissions
+        ExamSubmission::whereHas('evaluation', function ($query) {
+            $query->where('user_id', auth()->id());
+        })
+            ->whereIn('status', ['pending', 'processing'])
+            ->where('updated_at', '<', $timeout)
+            ->update([
+                'status' => 'error',
+                'error_message' => 'Tempo limite excedido (15 min). A correção foi cancelada automaticamente.'
+            ]);
+            
+        // Sync Evaluation status if all submissions are processed
+        $evaluations = ExamEvaluation::where('user_id', auth()->id())
+            ->where('status', 'processing')
+            ->get();
+
+        foreach ($evaluations as $evaluation) {
+            $total = $evaluation->submissions()->count();
+            $processed = $evaluation->submissions()->whereIn('status', ['completed', 'error'])->count();
+            if ($total > 0 && $total === $processed) {
+                $evaluation->update(['status' => 'completed']);
+            }
+        }
+    }
     public function getGenerationTasks()
     {
         return ExamGenerationRequest::where('user_id', auth()->id())

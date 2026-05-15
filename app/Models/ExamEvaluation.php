@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 
-#[Fillable(['user_id', 'title', 'answer_key_file_path', 'grading_criteria', 'status'])]
+#[Fillable(['user_id', 'title', 'answer_key_file_path', 'exam_file_path', 'grading_criteria', 'status'])]
 class ExamEvaluation extends Model
 {
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo

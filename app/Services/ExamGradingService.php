@@ -36,10 +36,18 @@ class ExamGradingService
 
             // Answer Key
             if (!empty($evaluation->answer_key_file_path)) {
+                $parts[] = "DOCUMENTO A (GABARITO DE REFERÊNCIA):";
                 $parts[] = $this->createBlobFromPath($evaluation->answer_key_file_path);
             }
 
+            // Blank Exam Template
+            if (!empty($evaluation->exam_file_path)) {
+                $parts[] = "DOCUMENTO B (PROVA ORIGINAL EM BRANCO):";
+                $parts[] = $this->createBlobFromPath($evaluation->exam_file_path);
+            }
+
             // Student Submission
+            $parts[] = "DOCUMENTO FINAL (PROVA DO ALUNO A SER CORRIGIDA):";
             $parts[] = $this->prepareStudentPart($submission->student_file_path);
 
             $submission->update(['status_message' => 'Consultando Inteligência Artificial...']);
@@ -226,10 +234,20 @@ class ExamGradingService
 
         $criteria = $evaluation->grading_criteria ?? 'Nenhum critério específico fornecido. Avalie de 0 a 10 por padrão.';
         $hasAnswerKey = !empty($evaluation->answer_key_file_path);
+        $hasExamFile = !empty($evaluation->exam_file_path);
 
-        $instruction = $hasAnswerKey 
-            ? "IMPORTANTE: O Documento A (Gabarito) é o primeiro arquivo fornecido. O Documento B (Prova do Aluno) é o segundo arquivo fornecido."
-            : "IMPORTANTE: Não há gabarito fornecido. Avalie a Prova do Aluno (único arquivo fornecido) utilizando seu conhecimento especialista sobre a disciplina, aplicando rigorosamente os critérios definidos.";
+        $instruction = "INSTRUÇÕES DE DOCUMENTOS:\n";
+        if ($hasAnswerKey) {
+            $instruction .= "- Você recebeu o GABARITO (Documento A) para validar as respostas.\n";
+        }
+        if ($hasExamFile) {
+            $instruction .= "- Você recebeu a PROVA EM BRANCO (Documento B) para entender melhor as questões e o layout.\n";
+        }
+        $instruction .= "- O último documento enviado é a PROVA DO ALUNO a ser avaliada.\n";
+
+        if (!$hasAnswerKey && !$hasExamFile) {
+            $instruction .= "\nIMPORTANTE: Não há gabarito nem prova de referência. Avalie utilizando seu conhecimento especialista aplicando os critérios abaixo.";
+        }
 
         return <<<PROMPT
 $promptBase

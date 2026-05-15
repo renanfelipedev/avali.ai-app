@@ -13,7 +13,13 @@ use Illuminate\Support\Facades\Log;
 
 class SubmissionService
 {
-    protected array $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'docx', 'txt'];
+    protected array $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'docx', 'doc', 'txt'];
+    protected PdfConverterService $pdfConverter;
+
+    public function __construct(PdfConverterService $pdfConverter)
+    {
+        $this->pdfConverter = $pdfConverter;
+    }
 
     /**
      * Process a collection of uploaded files or ZIPs.
@@ -66,10 +72,13 @@ class SubmissionService
                     
                     Storage::disk('public')->put($newPath, file_get_contents($file->getRealPath()));
                     
+                    // Convert to PDF if not already
+                    $pdfPath = $this->pdfConverter->convertToPdf($newPath);
+
                     $submission = ExamSubmission::create([
                         'exam_evaluation_id' => $evaluation->id,
                         'student_name' => $this->extractNameFromFilename($originalFilename),
-                        'student_file_path' => $newPath,
+                        'student_file_path' => $pdfPath,
                         'status' => 'pending',
                     ]);
                     
@@ -88,10 +97,13 @@ class SubmissionService
         $originalFilename = $file->getClientOriginalName();
         $path = $file->store('evaluations/submissions', 'public');
 
+        // Convert to PDF
+        $pdfPath = $this->pdfConverter->convertToPdf($path);
+
         $submission = ExamSubmission::create([
             'exam_evaluation_id' => $evaluation->id,
             'student_name' => $this->extractNameFromFilename($originalFilename),
-            'student_file_path' => $path,
+            'student_file_path' => $pdfPath,
             'status' => 'pending',
         ]);
 

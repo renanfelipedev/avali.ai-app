@@ -5,17 +5,13 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Layout('layouts.main')] class extends Component
-{
+new #[Layout('layouts.main')] class extends Component {
     use WithPagination;
 
     public function with(): array
     {
         return [
-            'evaluations' => auth()->user()
-                ->examEvaluations()
-                ->latest()
-                ->paginate(10),
+            'evaluations' => auth()->user()->examEvaluations()->latest()->paginate(10),
         ];
     }
 
@@ -30,7 +26,7 @@ new #[Layout('layouts.main')] class extends Component
 };
 ?>
 
-<div @if($evaluations->where('status', 'processing')->count() > 0) wire:poll.5s @endif>
+<div @if ($evaluations->where('status', 'processing')->count() > 0) wire:poll.5s @endif>
     <div class="flex justify-between items-center mb-6">
         <flux:heading size="xl">Correção de Provas</flux:heading>
         <flux:button href="{{ route('evaluations.create') }}" variant="primary">Nova Correção</flux:button>
@@ -54,13 +50,16 @@ new #[Layout('layouts.main')] class extends Component
                             <div class="text-sm text-zinc-500">{{ Str::limit($evaluation->grading_criteria, 50) }}</div>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge size="sm" color="zinc">{{ $evaluation->submissions()->count() }} submissões</flux:badge>
+                            <flux:badge size="sm" color="zinc">{{ $evaluation->submissions()->count() }} submissões
+                            </flux:badge>
                         </flux:table.cell>
                         <flux:table.cell>
-                            @if($evaluation->status === 'completed')
+                            @if ($evaluation->status === 'completed')
                                 <flux:badge color="success" size="sm">Concluído</flux:badge>
                             @elseif($evaluation->status === 'processing')
                                 <flux:badge color="indigo" size="sm" class="animate-pulse">Processando</flux:badge>
+                            @elseif($evaluation->status === 'error')
+                                <flux:badge color="red" size="sm">Erro</flux:badge>
                             @else
                                 <flux:badge color="zinc" size="sm">Pendente</flux:badge>
                             @endif
@@ -70,8 +69,11 @@ new #[Layout('layouts.main')] class extends Component
                         </flux:table.cell>
                         <flux:table.cell>
                             <div class="flex items-center gap-2">
-                                <flux:button href="{{ route('evaluations.show', $evaluation) }}" size="sm" variant="ghost" icon="eye" />
-                                <flux:button wire:click="deleteEvaluation({{ $evaluation->id }})" wire:confirm="Tem certeza?" size="sm" variant="ghost" color="danger" icon="trash" />
+                                <flux:button href="{{ route('evaluations.show', $evaluation) }}" size="sm"
+                                    variant="ghost" icon="eye" />
+                                <flux:button wire:click="deleteEvaluation({{ $evaluation->id }})"
+                                    wire:confirm="Tem certeza?" size="sm" variant="ghost" color="danger"
+                                    icon="trash" />
                             </div>
                         </flux:table.cell>
                     </flux:table.row>

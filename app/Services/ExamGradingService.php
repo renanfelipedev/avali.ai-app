@@ -13,7 +13,8 @@ use Throwable;
 
 class ExamGradingService
 {
-    protected $aiService;
+    protected AiService $aiService;
+    protected string $module = 'ExamGrading';
 
     public function __construct(AiService $aiService)
     {
@@ -27,114 +28,140 @@ class ExamGradingService
         $submission->update([
             'status' => 'processing',
             'status_message' => 'Iniciando correção...'
-        ]);
-
-        try {
+        ]);        try {
             $submission->update(['status_message' => 'Lendo conteúdo do arquivo...']);
             $prompt = $this->buildSystemPrompt($evaluation);
 
-            // Load student file
-            $studentFilePath = Storage::disk('public')->path($submission->student_file_path);
-            $studentExtension = strtolower(pathinfo($studentFilePath, PATHINFO_EXTENSION));
-
             $parts = [$prompt];
 
-            // Conditionally load answer key blob
-            $hasAnswerKey = !empty($evaluation->answer_key_file_path);
-            if ($hasAnswerKey) {
-                $answerKeyPath = Storage::disk('public')->path($evaluation->answer_key_file_path);
-                $parts[] = new Blob(
-                    mimeType: $this->getMimeType($answerKeyPath),
-                    data: base64_encode(file_get_contents($answerKeyPath))
-                );
+            // Answer Key
+            if (!empty($evaluation->answer_key_file_path)) {
+                $parts[] = $this->createBlobFromPath($evaluation->answer_key_file_path);
             }
 
-            // Always add student submission last
-            if (in_array($studentExtension, ['docx', 'txt'])) {
-                $textContent = $this->extractText($studentFilePath, $studentExtension);
-                $parts[] = "CONTEÚDO DA PROVA DO ALUNO (Documento B):\n\n" . $textContent;
-            } else {
-                $parts[] = new Blob(
-                    mimeType: $this->getMimeType($studentFilePath),
-                    data: base64_encode(file_get_contents($studentFilePath))
-                );
-            }
+            // Student Submission
+            $parts[] = $this->prepareStudentPart($submission->student_file_path);
 
-            // Use Fallback Service
             $submission->update(['status_message' => 'Consultando Inteligência Artificial...']);
             $response = $this->aiService->generateContent($parts);
 
-            $text = trim($response->text());
-            
-            // Clean up possible markdown code block
-            $text = str_replace(['```json', '```'], '', $text);
-            $text = preg_replace('/[\x00-\x1F\x7F]/', '', $text);
-            $text = trim($text);
-
-            $data = json_decode($text, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('O retorno do Gemini não foi um JSON válido: ' . json_last_error_msg() . " - Retorno: " . $text);
-            }
-
-            // A prompt expect an array with student results, we grab the first one
+            $data = $this->parseJsonResponse($response->text());
             $result = $data[0] ?? $data;
 
             $submission->update(['status_message' => 'Finalizando resultados...']);
 
             $submission->update([
-                'student_name' => $result['student_name'] ?? ($submission->student_name ?: 'Aluno Desconhecido'),
-                'final_grade' => $result['final_grade'] ?? 0,
-                'feedback_data' => $result['questions'] ?? [],
-                'transcription' => $result['full_transcription'] ?? null,
-                'status' => 'completed',
+                'student_name'   => $result['student_name'] ?? ($submission->student_name ?: 'Aluno Desconhecido'),
+                'final_grade'    => $result['final_grade'] ?? 0,
+                'feedback_data'  => $result['questions'] ?? [],
+                'transcription'  => $result['full_transcription'] ?? null,
+                'status'         => 'completed',
                 'status_message' => 'Concluído com sucesso',
             ]);
 
-            // Log successful grading with tokens
-            \App\Models\AiLog::create([
-                'module' => 'ExamGrading',
+            $this->logInteraction($submission->id, $evaluation->id, [
                 'tokens_used' => $response->usageMetadata->totalTokenCount ?? 0,
-                'request_payload' => [
-                    'exam_submission_id' => $submission->id,
-                    'exam_evaluation_id' => $evaluation->id,
-                ],
             ]);
 
             return true;
         } catch (Throwable $e) {
-            $errorMessage = $e->getMessage();
-            $isTransient = str_contains(strtolower($errorMessage), 'timed out') || 
-                          str_contains(strtolower($errorMessage), 'high demand') ||
-                          str_contains(strtolower($errorMessage), 'too many requests') ||
-                          str_contains(strtolower($errorMessage), 'quota exceeded') ||
-                          str_contains(strtolower($errorMessage), 'rate limit') ||
-                          str_contains(strtolower($errorMessage), 'service unavailable');
+            return $this->handleGradingError($e, $submission, $evaluation);
+        }
+    }
 
-            // Log the error
-            \App\Models\AiLog::create([
-                'module' => 'ExamGrading',
-                'error_message' => $errorMessage . "\n" . $e->getTraceAsString(),
-                'request_payload' => [
-                    'exam_submission_id' => $submission->id,
-                    'exam_evaluation_id' => $evaluation->id,
-                    'student_name' => $submission->student_name,
-                    'is_transient' => $isTransient
-                ],
-            ]);
+    private function createBlobFromPath(string $path): Blob
+    {
+        $fullPath = Storage::disk('public')->path($path);
+        return new Blob(
+            mimeType: $this->getMimeType($fullPath),
+            data: base64_encode(file_get_contents($fullPath))
+        );
+    }
 
-            if ($isTransient) {
-                // Throwing the exception allows the Job to catch it and retry
-                throw $e;
-            }
+    private function prepareStudentPart(string $filePath): Blob|string
+    {
+        $fullPath = Storage::disk('public')->path($filePath);
+        $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
 
-            $submission->update([
-                'status' => 'error',
-                'status_message' => 'Erro na correção',
-                'error_message' => $errorMessage,
-            ]);
+        if (in_array($extension, ['docx', 'txt'])) {
+            return "CONTEÚDO DA PROVA DO ALUNO (Documento B):\n\n" . $this->extractText($fullPath, $extension);
+        }
 
-            return false;
+        return $this->createBlobFromPath($filePath);
+    }
+
+    private function parseJsonResponse(string $text): array
+    {
+        // Clean markdown and control characters
+        $text = str_replace(['```json', '```'], '', $text);
+        if (preg_match('/(\[.*\]|\{.*\})/s', $text, $matches)) {
+            $text = $matches[1];
+        }
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
+        $text = trim($text);
+
+        $data = json_decode($text, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('O retorno do Gemini não foi um JSON válido: ' . json_last_error_msg());
+        }
+
+        return $data;
+    }
+
+    private function handleGradingError(Throwable $e, ExamSubmission $submission, ExamEvaluation $evaluation): bool
+    {
+        $errorMessage = $e->getMessage();
+        $isTransient = $this->isTransientError($errorMessage);
+
+        $this->logInteraction($submission->id, $evaluation->id, [
+            'error_message' => $errorMessage . "\n" . $e->getTraceAsString(),
+            'is_transient'  => $isTransient,
+        ], true);
+
+        if ($isTransient) {
+            throw $e;
+        }
+
+        $submission->update([
+            'status'         => 'error',
+            'status_message' => 'Erro na correção',
+            'error_message'  => $errorMessage,
+        ]);
+
+        return false;
+    }
+
+    private function isTransientError(string $message): bool
+    {
+        $message = strtolower($message);
+        $transientKeywords = ['timed out', 'high demand', 'too many requests', 'quota exceeded', 'rate limit', 'service unavailable'];
+        
+        foreach ($transientKeywords as $keyword) {
+            if (str_contains($message, $keyword)) return true;
+        }
+
+        return false;
+    }
+
+    private function logInteraction(int $submissionId, int $evaluationId, array $data, bool $isError = false): void
+    {
+        $payload = [
+            'module'          => $this->module,
+            'request_payload' => array_merge([
+                'exam_submission_id' => $submissionId,
+                'exam_evaluation_id' => $evaluationId,
+            ], $data['request_payload'] ?? []),
+        ];
+
+        if ($isError) {
+            $payload['error_message'] = $data['error_message'] ?? 'Unknown error';
+        } else {
+            $payload['tokens_used'] = $data['tokens_used'] ?? 0;
+        }
+
+        \App\Models\AiLog::create($payload);
+    }
         }
     }
 

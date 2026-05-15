@@ -1,0 +1,24 @@
+# Avali.ai Coding Standards
+
+## Core Principles
+- **DRY (Don't Repeat Yourself)**: Avoid code duplication. Extract logic to services, traits, or helper functions.
+- **KISS (Keep It Simple, Stupid)**: Write simple, readable, and maintainable code. Avoid over-engineering.
+- **PSR Standards**: Follow PSR-1, PSR-4, and PSR-12 strictly.
+- **Laravel Patterns**: Use standard Laravel patterns (Service Layer, Form Requests, DTOs where appropriate, Skinny Controllers).
+
+## PHP & Laravel Specifics
+- Use PHP 8.3+ features (readonly properties, constructor promotion, typed constants, etc.).
+- Always specify return types and argument types for methods.
+- Use `camelCase` for variables and methods, `StudlyCaps` for classes and traits.
+- Controllers should only handle request orchestration. All business logic goes into `app/Services`.
+- Use Eloquent best practices (Scopes, Accessors/Mutators, Relations).
+- Use `Pest` for testing.
+
+## UI/UX (Livewire & Flux UI)
+- Use **Flux UI** components exclusively for all UI elements.
+- Never use standard HTML tags for forms (input, select, button).
+- Maintain premium aesthetics (vibrant colors, dark mode support, smooth transitions).
+- Use Livewire 4 for reactivity.
+
+## Documentation
+- Refer to `AGENT.md` for full project context.

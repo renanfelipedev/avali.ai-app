@@ -27,12 +27,14 @@ This document provides essential context and guidelines for AI agents working on
 - `.docs/`: Reference documents (PDFs, templates)
 
 ## 💡 Architectural Principles
-1. **The Laravel Way**: Follow standard Laravel conventions. Use Artisan for generating boilerplate (`php artisan make:*`).
-2. **Reactivity**: Prefer Livewire 4 for interactive features. Avoid custom JS unless necessary; use Alpine.js for light client-side logic.
-3. **UI Consistency**: Always use **Flux UI** components (`<flux:*>`) for buttons, inputs, modals, and layouts to maintain a premium aesthetic.
-4. **Service Layer**: (If applicable) Encapsulate complex business logic in Service classes within `app/Services`.
-5. **Testing**: Write Pest tests for all new features. Ensure `vendor/bin/pest` passes before finalizing changes.
-6. **Code Style**: Run `vendor/bin/pint --format agent` to format PHP code according to project standards.
+1. **The Laravel Way**: Follow standard Laravel conventions and patterns. Use Artisan for generating boilerplate (`php artisan make:*`).
+2. **KISS & DRY**: Keep the code simple and readable (Keep It Simple, Stupid). Avoid logic duplication by centralizing business logic in Services or Traits (Don't Repeat Yourself).
+3. **PSR Standards**: Strictly follow PHP Standard Recommendations (PSR-1, PSR-4, PSR-12). Maintain consistent naming (StudlyCaps for classes, camelCase for methods/variables).
+4. **Reactivity**: Prefer Livewire 4 for interactive features. Avoid custom JS unless necessary; use Alpine.js for light client-side logic.
+5. **UI Consistency**: Always use **Flux UI** components (`<flux:*>`) for buttons, inputs, modals, and layouts to maintain a premium aesthetic.
+6. **Service Layer**: Encapsulate complex business logic in Service classes within `app/Services`. Controllers must remain thin (Skinny Controllers).
+7. **Testing**: Write Pest tests for all new features. Ensure `vendor/bin/pest` passes before finalizing changes.
+8. **Code Style**: Run `vendor/bin/pint` to format PHP code according to project standards.
 
 ## 🤖 Agent Tools & Workflow
 - **Laravel Boost**: This project is optimized for Laravel Boost MCP. Use tools like `database-schema`, `database-query`, and `search-docs` for better context.

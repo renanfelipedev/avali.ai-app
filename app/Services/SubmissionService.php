@@ -8,6 +8,8 @@ use App\Jobs\EvaluateSubmissionJob;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SubmissionService
 {
@@ -18,27 +20,36 @@ class SubmissionService
      */
     public function processUploads(ExamEvaluation $evaluation, array $uploads): void
     {
-        $delay = 0;
+        DB::beginTransaction();
+        try {
+            $evaluation->update(['status' => 'processing']);
 
-        foreach ($uploads as $file) {
-            $extension = strtolower($file->getClientOriginalExtension());
+            foreach ($uploads as $file) {
+                $extension = strtolower($file->getClientOriginalExtension());
 
-            if ($extension === 'zip') {
-                $delay = $this->processZip($evaluation, $file, $delay);
-            } else {
-                $this->createAndDispatch($evaluation, $file, $delay);
-                $delay += 5;
+                if ($extension === 'zip') {
+                    $this->processZip($evaluation, $file);
+                } elseif (in_array($extension, $this->allowedExtensions)) {
+                    $this->createAndDispatch($evaluation, $file);
+                }
             }
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Erro ao processar uploads: ' . $e->getMessage(), [
+                'evaluation_id' => $evaluation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
     }
 
     /**
      * Process a ZIP file containing multiple submissions.
      */
-    protected function processZip(ExamEvaluation $evaluation, UploadedFile $zipFile, int $startDelay): int
+    protected function processZip(ExamEvaluation $evaluation, UploadedFile $zipFile): void
     {
-        $delay = $startDelay;
-        $zip = new \ZipArchive;
+        $zip = new \ZipArchive();
 
         if ($zip->open($zipFile->getRealPath()) === TRUE) {
             $tempDir = storage_path('app/public/evaluations/temp_' . uniqid());
@@ -62,20 +73,17 @@ class SubmissionService
                         'status' => 'pending',
                     ]);
                     
-                    EvaluateSubmissionJob::dispatch($evaluation, $submission)->delay(now()->addSeconds($delay));
-                    $delay += 5;
+                    EvaluateSubmissionJob::dispatch($evaluation, $submission);
                 }
             }
             File::deleteDirectory($tempDir);
         }
-
-        return $delay;
     }
 
     /**
      * Create a single submission and dispatch its job.
      */
-    protected function createAndDispatch(ExamEvaluation $evaluation, UploadedFile $file, int $delay): void
+    protected function createAndDispatch(ExamEvaluation $evaluation, UploadedFile $file): void
     {
         $originalFilename = $file->getClientOriginalName();
         $path = $file->store('evaluations/submissions', 'public');
@@ -87,7 +95,7 @@ class SubmissionService
             'status' => 'pending',
         ]);
 
-        EvaluateSubmissionJob::dispatch($evaluation, $submission)->delay(now()->addSeconds($delay));
+        EvaluateSubmissionJob::dispatch($evaluation, $submission);
     }
 
     /**

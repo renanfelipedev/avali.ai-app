@@ -30,7 +30,7 @@ new #[Layout('layouts.main')] class extends Component
 };
 ?>
 
-<div>
+<div @if($evaluations->where('status', 'processing')->count() > 0) wire:poll.5s @endif>
     <div class="flex justify-between items-center mb-6">
         <flux:heading size="xl">Correção de Provas</flux:heading>
         <flux:button href="{{ route('evaluations.create') }}" variant="primary">Nova Correção</flux:button>
@@ -41,6 +41,7 @@ new #[Layout('layouts.main')] class extends Component
             <flux:table.columns>
                 <flux:table.column>Título</flux:table.column>
                 <flux:table.column>Provas</flux:table.column>
+                <flux:table.column>Status</flux:table.column>
                 <flux:table.column>Data</flux:table.column>
                 <flux:table.column>Ações</flux:table.column>
             </flux:table.columns>
@@ -54,6 +55,15 @@ new #[Layout('layouts.main')] class extends Component
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:badge size="sm" color="zinc">{{ $evaluation->submissions()->count() }} submissões</flux:badge>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            @if($evaluation->status === 'completed')
+                                <flux:badge color="success" size="sm">Concluído</flux:badge>
+                            @elseif($evaluation->status === 'processing')
+                                <flux:badge color="indigo" size="sm" class="animate-pulse">Processando</flux:badge>
+                            @else
+                                <flux:badge color="zinc" size="sm">Pendente</flux:badge>
+                            @endif
                         </flux:table.cell>
                         <flux:table.cell>
                             {{ $evaluation->created_at->format('d/m/Y H:i') }}

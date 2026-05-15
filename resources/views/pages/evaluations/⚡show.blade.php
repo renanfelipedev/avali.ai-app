@@ -49,7 +49,7 @@ new #[Layout('layouts.main')] class extends Component
     public function retrySubmission($submissionId)
     {
         $submission = ExamSubmission::findOrFail($submissionId);
-        $this->authorizeOwnership($submission->examEvaluation);
+        $this->authorizeOwnership($submission->evaluation);
 
         $this->requeueSubmission($submission);
         
@@ -87,10 +87,39 @@ new #[Layout('layouts.main')] class extends Component
     </div>
 
     @if($evaluation->status === 'processing')
-        <flux:card class="mb-6 border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/10">
-            <div class="flex items-center gap-3 text-amber-600 dark:text-amber-500">
-                <flux:icon.arrow-path class="animate-spin h-5 w-5" />
-                <span class="font-medium">Processando a avaliação com inteligência artificial. Os resultados aparecerão automaticamente.</span>
+        @php
+            $total = $evaluation->submissions->count();
+            $completed = $evaluation->submissions->where('status', 'completed')->count();
+            $failed = $evaluation->submissions->where('status', 'error')->count();
+            $processing = $evaluation->submissions->where('status', 'processing')->count();
+            $done = $completed + $failed;
+            $progress = $total > 0 ? ($done / $total) * 100 : 0;
+        @endphp
+
+        <flux:card class="mb-6 space-y-4 border-indigo-200 bg-indigo-50 dark:border-indigo-900/50 dark:bg-indigo-900/10">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3 text-indigo-600 dark:text-indigo-400">
+                    <flux:icon.arrow-path class="animate-spin h-5 w-5" />
+                    <div>
+                        <div class="font-bold">Corrigindo provas com Inteligência Artificial...</div>
+                        <div class="text-xs">Os resultados aparecerão na lista abaixo conforme forem finalizados.</div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm font-bold text-indigo-700 dark:text-indigo-300">{{ $done }} / {{ $total }}</div>
+                    <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Concluídos</div>
+                </div>
+            </div>
+
+            <div class="w-full bg-zinc-200 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
+                <div class="bg-indigo-600 h-2 transition-all duration-500 ease-out" style="width: {{ $progress }}%"></div>
+            </div>
+
+            <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                <div class="text-green-600">Sucesso: {{ $completed }}</div>
+                <div class="text-indigo-500 animate-pulse">Em andamento: {{ $processing }}</div>
+                <div class="text-red-600">Erros: {{ $failed }}</div>
+                <div class="text-zinc-500">Pendentes: {{ $total - ($done + $processing) }}</div>
             </div>
         </flux:card>
     @endif
@@ -117,8 +146,13 @@ new #[Layout('layouts.main')] class extends Component
                                 <flux:badge color="success" size="sm">Concluído</flux:badge>
                             @elseif($submission->status === 'error')
                                 <flux:badge color="danger" size="sm">Erro</flux:badge>
+                            @elseif($submission->status === 'processing')
+                                <div class="flex flex-col gap-1">
+                                    <flux:badge color="indigo" size="sm" class="animate-pulse">Corrigindo</flux:badge>
+                                    <span class="text-[10px] text-zinc-500 italic">{{ $submission->status_message }}</span>
+                                </div>
                             @else
-                                <flux:badge color="zinc" size="sm">Processando</flux:badge>
+                                <flux:badge color="zinc" size="sm">Pendente</flux:badge>
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>
@@ -128,8 +162,12 @@ new #[Layout('layouts.main')] class extends Component
                         </flux:table.cell>
                         <flux:table.cell>
                             <div class="flex items-center gap-2">
-                                @if($submission->status === 'error')
-                                    <flux:button wire:click="retrySubmission({{ $submission->id }})" size="sm" variant="ghost" icon="arrow-path" tooltip="Recorrigir esta prova" />
+                                @if($submission->status !== 'completed')
+                                    <flux:button wire:click="retrySubmission({{ $submission->id }})" size="sm" variant="ghost" icon="arrow-path" tooltip="Forçar correção desta prova" />
+                                @endif
+                                
+                                @if($submission->status === 'completed')
+                                    <flux:button wire:click="retrySubmission({{ $submission->id }})" size="sm" variant="ghost" icon="arrow-path" tooltip="Refazer correção" />
                                 @endif
 
                                 <flux:modal.trigger name="feedback-modal-{{ $submission->id }}">

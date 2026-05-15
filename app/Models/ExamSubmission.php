@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 
-#[Fillable(['exam_evaluation_id', 'student_name', 'student_file_path', 'final_grade', 'feedback_data', 'transcription', 'status', 'error_message'])]
+#[Fillable(['exam_evaluation_id', 'student_name', 'student_file_path', 'final_grade', 'feedback_data', 'transcription', 'status', 'status_message', 'error_message'])]
 class ExamSubmission extends Model
 {
     /**

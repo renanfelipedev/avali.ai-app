@@ -9,8 +9,12 @@ trait HasOwnership
     /**
      * Ensure the current user owns the given model.
      */
-    protected function authorizeOwnership(Model $model): void
+    protected function authorizeOwnership(?Model $model): void
     {
+        if (!$model) {
+            abort(404, 'Recurso não encontrado.');
+        }
+
         if ($model->user_id !== auth()->id()) {
             abort(403, 'Você não tem permissão para acessar este recurso.');
         }

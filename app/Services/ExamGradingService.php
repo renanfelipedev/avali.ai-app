@@ -24,9 +24,13 @@ class ExamGradingService
     {
         $this->verifyAiAccess();
 
-        $submission->update(['status' => 'processing']);
+        $submission->update([
+            'status' => 'processing',
+            'status_message' => 'Iniciando correção...'
+        ]);
 
         try {
+            $submission->update(['status_message' => 'Lendo conteúdo do arquivo...']);
             $prompt = $this->buildSystemPrompt($evaluation);
 
             // Load student file
@@ -57,12 +61,14 @@ class ExamGradingService
             }
 
             // Use Fallback Service
+            $submission->update(['status_message' => 'Consultando Inteligência Artificial...']);
             $response = $this->aiService->generateContent($parts);
 
             $text = trim($response->text());
             
             // Clean up possible markdown code block
             $text = str_replace(['```json', '```'], '', $text);
+            $text = preg_replace('/[\x00-\x1F\x7F]/', '', $text);
             $text = trim($text);
 
             $data = json_decode($text, true);
@@ -74,12 +80,15 @@ class ExamGradingService
             // A prompt expect an array with student results, we grab the first one
             $result = $data[0] ?? $data;
 
+            $submission->update(['status_message' => 'Finalizando resultados...']);
+
             $submission->update([
                 'student_name' => $result['student_name'] ?? ($submission->student_name ?: 'Aluno Desconhecido'),
                 'final_grade' => $result['final_grade'] ?? 0,
                 'feedback_data' => $result['questions'] ?? [],
                 'transcription' => $result['full_transcription'] ?? null,
                 'status' => 'completed',
+                'status_message' => 'Concluído com sucesso',
             ]);
 
             // Log successful grading with tokens
@@ -121,6 +130,7 @@ class ExamGradingService
 
             $submission->update([
                 'status' => 'error',
+                'status_message' => 'Erro na correção',
                 'error_message' => $errorMessage,
             ]);
 

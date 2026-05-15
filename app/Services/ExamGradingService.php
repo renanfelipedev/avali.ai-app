@@ -100,6 +100,7 @@ class ExamGradingService
 
     private function parseJsonResponse(string $text): array
     {
+        $rawText = $text;
         // Clean markdown and control characters
         $text = str_replace(['```json', '```'], '', $text);
         if (preg_match('/(\[.*\]|\{.*\})/s', $text, $matches)) {
@@ -111,7 +112,7 @@ class ExamGradingService
         $data = json_decode($text, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception('O retorno do Gemini não foi um JSON válido: ' . json_last_error_msg());
+            throw new \Exception('O retorno do Gemini não foi um JSON válido: ' . json_last_error_msg() . "\n\nResposta Bruta:\n" . $rawText);
         }
 
         return $data;

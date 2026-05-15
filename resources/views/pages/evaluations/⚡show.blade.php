@@ -349,11 +349,28 @@ new #[Layout('layouts.main')] class extends Component {
                                     </div>
 
                                     @if ($submission->status === 'error')
-                                        <flux:card
-                                            class="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/10 text-red-600 dark:text-red-500">
-                                            <div class="font-bold mb-1">Erro no processamento:</div>
-                                            {{ $submission->error_message }}
-                                        </flux:card>
+                                        <div class="space-y-4">
+                                            <flux:card
+                                                class="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/10 text-red-600 dark:text-red-500">
+                                                <div class="flex items-center gap-2 font-bold mb-2 text-lg">
+                                                    <flux:icon.exclamation-triangle class="w-5 h-5" />
+                                                    Erro no Processamento
+                                                </div>
+                                                <div class="text-sm font-mono whitespace-pre-wrap bg-white/50 dark:bg-black/20 p-4 rounded-lg border border-red-100 dark:border-red-800">
+                                                    {{ $submission->error_message }}
+                                                </div>
+                                            </flux:card>
+
+                                            <div class="p-4 bg-zinc-100 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                                                <flux:heading size="sm" class="mb-2">Sugestões de Resolução:</flux:heading>
+                                                <ul class="text-xs text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
+                                                    <li>Verifique se o arquivo da prova está legível e não está corrompido.</li>
+                                                    <li>Tente reprocessar clicando no botão "Tentar Novamente" acima.</li>
+                                                    <li>Se o erro persistir, verifique a transcrição integral (se disponível) para ver o que a IA leu.</li>
+                                                    <li>Em casos de "Quota Exceeded", aguarde alguns minutos antes de tentar novamente.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
                                     @endif
 
                                     @if ($submission->feedback_data && is_array($submission->feedback_data))

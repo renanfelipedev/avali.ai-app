@@ -37,9 +37,19 @@ class EvaluateSubmissionJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(ExamGradingService $gradingService): void
+    public function handle(ExamGradingService $service): void
     {
-        $gradingService->evaluateSubmission($this->evaluation, $this->submission);
+        $this->submission->update([
+            'status' => 'processing',
+            'status_message' => 'Analisando prova com Inteligência Artificial...'
+        ]);
+
+        try {
+            $service->evaluateSubmission($this->evaluation, $this->submission);
+        } catch (\Throwable $e) {
+            $this->failed($e);
+            throw $e; // Re-throw to let the worker know it failed
+        }
     }
 
     /**
@@ -47,9 +57,15 @@ class EvaluateSubmissionJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
+        Log::error("Job EvaluateSubmissionJob falhou para Submissão #{$this->submission->id}: " . $exception->getMessage(), [
+            'exception' => $exception,
+            'submission_id' => $this->submission->id
+        ]);
+
         $this->submission->update([
             'status' => 'error',
-            'error_message' => 'Falha após múltiplas tentativas: ' . $exception->getMessage(),
+            'error_message' => "Erro no Worker: " . $exception->getMessage(),
+            'status_message' => 'Falha técnica no processamento.'
         ]);
     }
 }

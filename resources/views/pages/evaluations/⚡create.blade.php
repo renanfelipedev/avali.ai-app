@@ -27,24 +27,18 @@ new #[Layout('layouts.main')] class extends Component {
         ];
     }
 
-    public function save(SubmissionService $submissionService, App\Services\PdfConverterService $pdfConverter)
+    public function save(SubmissionService $submissionService)
     {
         $this->validate();
         $this->isProcessing = true;
 
-        // Store Answer Key and Convert to PDF
-        $answerKeyPath = null;
-        if ($this->answer_key) {
-            $path = $this->answer_key->store('evaluations/answer_keys', 'public');
-            $answerKeyPath = $pdfConverter->convertToPdf($path);
-        }
+        \Log::info('Iniciando salvamento de avaliação', [
+            'total_arquivos' => count($this->student_submissions)
+        ]);
 
-        // Store Blank Exam and Convert to PDF
-        $examFilePath = null;
-        if ($this->exam_file) {
-            $path = $this->exam_file->store('evaluations/exams', 'public');
-            $examFilePath = $pdfConverter->convertToPdf($path);
-        }
+        // Store Reference Documents (Background normalization)
+        $answerKeyPath = $this->answer_key ? $this->answer_key->store('evaluations/answer_keys', 'public') : null;
+        $examFilePath = $this->exam_file ? $this->exam_file->store('evaluations/exams', 'public') : null;
 
         // Create Evaluation
         $evaluation = ExamEvaluation::create([
@@ -150,21 +144,24 @@ new #[Layout('layouts.main')] class extends Component {
                 </div>
             </div>
 
-            <flux:card
-                class="border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-900/5">
-                <div class="flex flex-col items-center justify-center py-8 text-center">
-                    <div class="mb-4 p-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600">
+            <flux:card class="border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-900/5">
+                <div class="flex flex-col items-center justify-center py-4 text-center space-y-6">
+                    <div class="p-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600">
                         <flux:icon.cloud-arrow-up class="w-10 h-10" />
                     </div>
-                    <flux:heading size="lg">Upload de Provas em Massa</flux:heading>
-                    <flux:subheading class="max-w-md mx-auto mb-6">
-                        Você pode selecionar várias imagens/PDFs de uma vez ou enviar um único arquivo **.ZIP** contendo
-                        todas as provas.
-                    </flux:subheading>
+                    
+                    <div class="w-full max-w-md mx-auto space-y-4">
+                        <flux:input wire:model="student_submissions" type="file" label="Provas dos Alunos"
+                            placeholder="Selecione os arquivos..." multiple required
+                            help="Selecione múltiplos arquivos (PDF, Imagem, Word) ou um arquivo .ZIP" />
 
-                    <div class="w-full max-w-sm">
-                        <flux:input type="file" wire:model="student_submissions" multiple required
-                            accept=".pdf,image/*,.zip,.docx,.doc,.txt" />
+                        <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3 text-left">
+                            <flux:icon.light-bulb class="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                            <div class="text-xs text-amber-800 dark:text-amber-300">
+                                <span class="font-bold block mb-1">Dica para grandes lotes:</span>
+                                Se você tem mais de 15 alunos, recomendamos enviar todas as provas em um único arquivo **.ZIP**. Isso é mais rápido e evita limitações do navegador.
+                            </div>
+                        </div>
                     </div>
                 </div>
             </flux:card>

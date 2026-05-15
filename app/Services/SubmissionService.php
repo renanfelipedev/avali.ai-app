@@ -26,11 +26,10 @@ class SubmissionService
      */
     public function processUploads(ExamEvaluation $evaluation, array $uploads): void
     {
-        DB::beginTransaction();
-        try {
-            $evaluation->update(['status' => 'processing']);
+        $evaluation->update(['status' => 'processing']);
 
-            foreach ($uploads as $file) {
+        foreach ($uploads as $file) {
+            try {
                 $extension = strtolower($file->getClientOriginalExtension());
 
                 if ($extension === 'zip') {
@@ -38,15 +37,13 @@ class SubmissionService
                 } elseif (in_array($extension, $this->allowedExtensions)) {
                     $this->createAndDispatch($evaluation, $file);
                 }
+            } catch (\Throwable $e) {
+                Log::error('Erro ao processar um arquivo individual: ' . $e->getMessage(), [
+                    'evaluation_id' => $evaluation->id,
+                    'file' => $file->getClientOriginalName()
+                ]);
+                // Continua para o próximo arquivo...
             }
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Erro ao processar uploads: ' . $e->getMessage(), [
-                'evaluation_id' => $evaluation->id,
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw $e;
         }
     }
 
@@ -70,15 +67,15 @@ class SubmissionService
                     $newFilename = uniqid() . '_' . $originalFilename;
                     $newPath = 'evaluations/submissions/' . $newFilename;
                     
-                    Storage::disk('public')->put($newPath, file_get_contents($file->getRealPath()));
+                    // Use stream for memory efficiency
+                    $source = fopen($file->getRealPath(), 'r');
+                    Storage::disk('public')->putStream($newPath, $source);
+                    fclose($source);
                     
-                    // Convert to PDF if not already
-                    $pdfPath = $this->pdfConverter->convertToPdf($newPath);
-
                     $submission = ExamSubmission::create([
                         'exam_evaluation_id' => $evaluation->id,
                         'student_name' => $this->extractNameFromFilename($originalFilename),
-                        'student_file_path' => $pdfPath,
+                        'student_file_path' => $newPath, // Save original, convert later
                         'status' => 'pending',
                     ]);
                     
@@ -97,13 +94,10 @@ class SubmissionService
         $originalFilename = $file->getClientOriginalName();
         $path = $file->store('evaluations/submissions', 'public');
 
-        // Convert to PDF
-        $pdfPath = $this->pdfConverter->convertToPdf($path);
-
         $submission = ExamSubmission::create([
             'exam_evaluation_id' => $evaluation->id,
             'student_name' => $this->extractNameFromFilename($originalFilename),
-            'student_file_path' => $pdfPath,
+            'student_file_path' => $path, // Save original, convert later
             'status' => 'pending',
         ]);
 

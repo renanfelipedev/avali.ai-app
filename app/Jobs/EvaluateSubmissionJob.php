@@ -7,6 +7,7 @@ use App\Models\ExamSubmission;
 use App\Services\ExamGradingService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
 class EvaluateSubmissionJob implements ShouldQueue
 {
@@ -39,17 +40,8 @@ class EvaluateSubmissionJob implements ShouldQueue
      */
     public function handle(ExamGradingService $service): void
     {
-        $this->submission->update([
-            'status' => 'processing',
-            'status_message' => 'Analisando prova com Inteligência Artificial...'
-        ]);
-
-        try {
-            $service->evaluateSubmission($this->evaluation, $this->submission);
-        } catch (\Throwable $e) {
-            $this->failed($e);
-            throw $e; // Re-throw to let the worker know it failed
-        }
+        // Service already handles internal status updates and transient error re-throws
+        $service->evaluateSubmission($this->evaluation, $this->submission);
     }
 
     /**
@@ -57,15 +49,18 @@ class EvaluateSubmissionJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        Log::error("Job EvaluateSubmissionJob falhou para Submissão #{$this->submission->id}: " . $exception->getMessage(), [
-            'exception' => $exception,
-            'submission_id' => $this->submission->id
+        Log::error("EvaluateSubmissionJob FAILED for Submission #{$this->submission->id}: " . $exception->getMessage(), [
+            'submission_id' => $this->submission->id,
+            'trace' => $exception->getTraceAsString()
         ]);
 
-        $this->submission->update([
-            'status' => 'error',
-            'error_message' => "Erro no Worker: " . $exception->getMessage(),
-            'status_message' => 'Falha técnica no processamento.'
-        ]);
+        // Only update if not already marked as error by the service
+        if ($this->submission->status !== 'error') {
+            $this->submission->update([
+                'status' => 'error',
+                'error_message' => "Falha crítica no worker: " . $exception->getMessage(),
+                'status_message' => 'Falha técnica no processamento.'
+            ]);
+        }
     }
 }

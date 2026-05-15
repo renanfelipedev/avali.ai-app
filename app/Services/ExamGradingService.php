@@ -14,11 +14,13 @@ use Throwable;
 class ExamGradingService
 {
     protected AiService $aiService;
+    protected PdfConverterService $pdfConverter;
     protected string $module = 'ExamGrading';
 
-    public function __construct(AiService $aiService)
+    public function __construct(AiService $aiService, PdfConverterService $pdfConverter)
     {
         $this->aiService = $aiService;
+        $this->pdfConverter = $pdfConverter;
     }
 
     public function evaluateSubmission(ExamEvaluation $evaluation, ExamSubmission $submission): bool
@@ -27,8 +29,30 @@ class ExamGradingService
 
         $submission->update([
             'status' => 'processing',
-            'status_message' => 'Iniciando correção...'
-        ]);        try {
+            'status_message' => 'Iniciando nova correção...',
+            'final_grade' => null,
+            'feedback_data' => null,
+            'transcription' => null,
+            'error_message' => null,
+        ]);
+
+        try {
+            $submission->update(['status_message' => 'Normalizando documentos (PDF)...']);
+            
+            // Normalize documents in background
+            if (!empty($evaluation->answer_key_file_path)) {
+                $evaluation->answer_key_file_path = $this->pdfConverter->convertToPdf($evaluation->answer_key_file_path);
+                $evaluation->save();
+            }
+
+            if (!empty($evaluation->exam_file_path)) {
+                $evaluation->exam_file_path = $this->pdfConverter->convertToPdf($evaluation->exam_file_path);
+                $evaluation->save();
+            }
+
+            $submission->student_file_path = $this->pdfConverter->convertToPdf($submission->student_file_path);
+            $submission->save();
+
             $submission->update(['status_message' => 'Lendo conteúdo do arquivo...']);
             $prompt = $this->buildSystemPrompt($evaluation);
 
@@ -171,8 +195,6 @@ class ExamGradingService
 
         \App\Models\AiLog::create($payload);
     }
-        }
-    }
 
     private function extractText(string $filePath, string $extension): string
     {
@@ -231,35 +253,51 @@ class ExamGradingService
     private function buildSystemPrompt(ExamEvaluation $evaluation): string
     {
         $promptReferencePath = base_path('.docs/prompts/system_grading_expert.md');
-        $promptBase = file_exists($promptReferencePath) ? file_get_contents($promptReferencePath) : 'Atue como um Especialista em Avaliação Educacional.';
+        $promptBase = file_exists($promptReferencePath) ? file_get_contents($promptReferencePath) : 'Você é um Especialista em Avaliação Educacional de alta precisão.';
 
-        $criteria = $evaluation->grading_criteria ?? 'Nenhum critério específico fornecido. Avalie de 0 a 10 por padrão.';
+        $criteria = $evaluation->grading_criteria ?? 'Avalie de 0 a 10 seguindo os padrões educacionais brasileiros.';
         $hasAnswerKey = !empty($evaluation->answer_key_file_path);
         $hasExamFile = !empty($evaluation->exam_file_path);
 
-        $instruction = "INSTRUÇÕES DE DOCUMENTOS:\n";
-        if ($hasAnswerKey) {
-            $instruction .= "- Você recebeu o GABARITO (Documento A) para validar as respostas.\n";
-        }
-        if ($hasExamFile) {
-            $instruction .= "- Você recebeu a PROVA EM BRANCO (Documento B) para entender melhor as questões e o layout.\n";
-        }
-        $instruction .= "- O último documento enviado é a PROVA DO ALUNO a ser avaliada.\n";
-
-        if (!$hasAnswerKey && !$hasExamFile) {
-            $instruction .= "\nIMPORTANTE: Não há gabarito nem prova de referência. Avalie utilizando seu conhecimento especialista aplicando os critérios abaixo.";
-        }
-
         return <<<PROMPT
-$promptBase
+{$promptBase}
 
-CRITÉRIO DE PONTUAÇÃO ESPECÍFICO DESTA AVALIAÇÃO:
-$criteria
+OBJETIVO:
+Analisar a PROVA DO ALUNO e fornecer uma correção detalhada em formato JSON.
 
-$instruction
-Extraia a nota e o feedback em formato JSON exatamente conforme as instruções.
-Não inclua crases (```json) ou texto Markdown adicional na resposta, apenas o JSON válido.
+REGRAS OBRIGATÓRIAS:
+1. Você DEVE retornar um ARRAY JSON contendo um objeto com as chaves: "student_name", "final_grade", "questions" (array) e "full_transcription".
+2. No array "questions", você DEVE incluir CADA questão identificada na prova com: "question_number", "grade", "student_answer" e "feedback".
+3. O "feedback" deve explicar CLARAMENTE por que o aluno recebeu aquela nota, comparando com o gabarito se disponível.
+4. NUNCA retorne apenas a nota final. O detalhamento por questão é obrigatório para a transparência do sistema.
+
+CONTEXTO ADICIONAL:
+- Critérios do Professor: "{$criteria}"
+- Gabarito Disponível: {$this->boolToStr($hasAnswerKey)}
+- Prova de Referência Disponível: {$this->boolToStr($hasExamFile)}
+
+FORMATO DE RESPOSTA (JSON PURO):
+[
+  {
+    "student_name": "Nome Identificado",
+    "final_grade": 8.5,
+    "full_transcription": "Texto integral da prova...",
+    "questions": [
+      {
+        "question_number": 1,
+        "grade": 2.0,
+        "student_answer": "Resposta do aluno",
+        "feedback": "Explicação detalhada..."
+      }
+    ]
+  }
+]
 PROMPT;
+    }
+
+    private function boolToStr(bool $val): string
+    {
+        return $val ? 'SIM' : 'NÃO';
     }
 
 }

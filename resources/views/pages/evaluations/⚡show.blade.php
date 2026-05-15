@@ -13,7 +13,9 @@ new #[Layout('layouts.main')] class extends Component {
 
     public ExamEvaluation $evaluation;
     public $new_file;
-    public $replacing_id;
+    public $viewing_file_url = null;
+    public $viewing_student_name = null;
+    public ?ExamSubmission $viewing_submission = null;
 
     public function mount(ExamEvaluation $evaluation)
     {
@@ -102,6 +104,25 @@ new #[Layout('layouts.main')] class extends Component {
                 $query->orderBy('student_name', 'asc');
             },
         ]);
+    }
+
+    public function previewFile($submissionId)
+    {
+        $submission = ExamSubmission::findOrFail($submissionId);
+        $this->authorizeOwnership($submission->evaluation);
+        
+        $this->viewing_file_url = Storage::url($submission->student_file_path);
+        $this->viewing_student_name = $submission->student_name;
+        
+        $this->modal('preview-file-modal')->show();
+    }
+
+    public function showFeedback($submissionId)
+    {
+        $this->viewing_submission = ExamSubmission::findOrFail($submissionId);
+        $this->authorizeOwnership($this->viewing_submission->evaluation);
+        
+        $this->modal('feedback-shared-modal')->show();
     }
 
     protected function requeueSubmission(ExamSubmission $submission): void
@@ -325,107 +346,15 @@ new #[Layout('layouts.main')] class extends Component {
                                         variant="ghost" icon="arrow-path" tooltip="Refazer correção" />
                                 @endif
 
-                                <flux:modal.trigger name="feedback-modal-{{ $submission->id }}">
-                                    <flux:button size="sm" variant="ghost" icon="document-text">Ver Feedback
-                                    </flux:button>
-                                </flux:modal.trigger>
+                                <flux:button wire:click="showFeedback({{ $submission->id }})" size="sm" variant="ghost" icon="document-text">Ver Feedback
+                                </flux:button>
+                                <flux:button wire:click="previewFile({{ $submission->id }})" size="sm" variant="ghost" icon="eye" tooltip="Visualizar Prova Original" />
+
                                 <flux:button href="{{ Storage::url($submission->student_file_path) }}"
-                                    target="_blank" size="sm" variant="ghost" icon="arrow-down-tray" />
+                                    target="_blank" size="sm" variant="ghost" icon="arrow-down-tray"
+                                    tooltip="Baixar Arquivo" />
                             </div>
 
-                            <flux:modal name="feedback-modal-{{ $submission->id }}" class="md:w-3/4 max-w-4xl">
-                                <div class="space-y-6">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <flux:heading size="lg">Feedback da Correção</flux:heading>
-                                            <flux:subheading>Aluno: {{ $submission->student_name }} - Nota Final:
-                                                {{ $submission->final_grade }}</flux:subheading>
-                                        </div>
-                                        @if ($submission->status === 'error')
-                                            <flux:button wire:click="retrySubmission({{ $submission->id }})"
-                                                variant="primary" size="sm" icon="arrow-path">Tentar Novamente
-                                            </flux:button>
-                                        @endif
-                                    </div>
-
-                                    @if ($submission->status === 'error')
-                                        <div class="space-y-4">
-                                            <flux:card
-                                                class="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/10 text-red-600 dark:text-red-500">
-                                                <div class="flex items-center gap-2 font-bold mb-2 text-lg">
-                                                    <flux:icon.exclamation-triangle class="w-5 h-5" />
-                                                    Erro no Processamento
-                                                </div>
-                                                <div class="text-sm font-mono whitespace-pre-wrap bg-white/50 dark:bg-black/20 p-4 rounded-lg border border-red-100 dark:border-red-800">
-                                                    {{ $submission->error_message }}
-                                                </div>
-                                            </flux:card>
-
-                                            <div class="p-4 bg-zinc-100 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                                                <flux:heading size="sm" class="mb-2">Sugestões de Resolução:</flux:heading>
-                                                <ul class="text-xs text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
-                                                    <li>Verifique se o arquivo da prova está legível e não está corrompido.</li>
-                                                    <li>Tente reprocessar clicando no botão "Tentar Novamente" acima.</li>
-                                                    <li>Se o erro persistir, verifique a transcrição integral (se disponível) para ver o que a IA leu.</li>
-                                                    <li>Em casos de "Quota Exceeded", aguarde alguns minutos antes de tentar novamente.</li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    @if ($submission->feedback_data && is_array($submission->feedback_data))
-                                        <div class="space-y-4">
-                                            @foreach ($submission->feedback_data as $q)
-                                                <flux:card class="space-y-4">
-                                                    <div class="flex justify-between items-start">
-                                                        <flux:heading size="md">Questão
-                                                            {{ $q['question_number'] ?? 'N/A' }}</flux:heading>
-                                                        <flux:badge color="zinc" size="sm">Nota:
-                                                            {{ $q['grade'] ?? 0 }}</flux:badge>
-                                                    </div>
-
-                                                    @if (isset($q['student_answer']))
-                                                        <div>
-                                                            <div
-                                                                class="text-xs font-bold uppercase text-zinc-500 mb-1">
-                                                                Resposta do Aluno:</div>
-                                                            <div
-                                                                class="p-3 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm italic text-zinc-700 dark:text-zinc-300">
-                                                                "{{ $q['student_answer'] }}"
-                                                            </div>
-                                                        </div>
-                                                    @endif
-
-                                                    <div>
-                                                        <div class="text-xs font-bold uppercase text-zinc-500 mb-1">
-                                                            Feedback da IA:</div>
-                                                        <p
-                                                            class="text-sm text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">
-                                                            {{ $q['feedback'] ?? 'Sem feedback fornecido.' }}</p>
-                                                    </div>
-                                                </flux:card>
-                                            @endforeach
-
-                                            @if ($submission->transcription)
-                                                <div class="pt-6 border-t">
-                                                    <flux:heading size="md" class="mb-2">Transcrição Integral
-                                                        da Prova</flux:heading>
-                                                    <flux:subheading class="mb-4">Texto exato identificado pela IA no
-                                                        documento do aluno.</flux:subheading>
-                                                    <div
-                                                        class="p-4 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-mono whitespace-pre-wrap leading-relaxed text-zinc-600 dark:text-zinc-400 max-h-96 overflow-y-auto">
-                                                        {{ $submission->transcription }}
-                                                    </div>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    @else
-                                        @if ($submission->status !== 'error')
-                                            <div class="text-sm text-zinc-500">Nenhum feedback disponível.</div>
-                                        @endif
-                                    @endif
-                                </div>
-                            </flux:modal>
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
@@ -438,4 +367,83 @@ new #[Layout('layouts.main')] class extends Component {
             </flux:table.rows>
         </flux:table>
     </flux:card>
+
+    <!-- Modal Compartilhado: Feedback Detalhado -->
+    <flux:modal name="feedback-shared-modal" class="md:w-3/4 max-w-4xl">
+        <div class="space-y-6">
+            @if($viewing_submission)
+                <div class="flex justify-between items-start">
+                    <div>
+                        <flux:heading size="lg">Feedback da Correção</flux:heading>
+                        <flux:subheading>Aluno: {{ $viewing_submission->student_name }} - Nota Final: {{ $viewing_submission->final_grade }}</flux:subheading>
+                    </div>
+                    @if ($viewing_submission->status === 'error')
+                        <flux:button wire:click="retrySubmission({{ $viewing_submission->id }})" variant="primary" size="sm" icon="arrow-path">Tentar Novamente</flux:button>
+                    @endif
+                </div>
+
+                @if ($viewing_submission->status === 'error')
+                    <div class="space-y-4">
+                        <flux:card class="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/10 text-red-600 dark:text-red-500">
+                            <div class="flex items-center gap-2 font-bold mb-2 text-lg">
+                                <flux:icon.exclamation-triangle class="w-5 h-5" />
+                                Erro no Processamento
+                            </div>
+                            <div class="text-sm font-mono bg-white/50 dark:bg-black/20 p-4 rounded-lg border border-red-100 dark:border-red-800">
+                                {{ $viewing_submission->error_message }}
+                            </div>
+                        </flux:card>
+                    </div>
+                @endif
+
+                @if ($viewing_submission->feedback_data && is_array($viewing_submission->feedback_data))
+                    <div class="space-y-4">
+                        @foreach ($viewing_submission->feedback_data as $q)
+                            <flux:card class="space-y-4">
+                                <div class="flex justify-between items-start">
+                                    <flux:heading size="md">Questão {{ $q['question_number'] ?? 'N/A' }}</flux:heading>
+                                    <flux:badge color="zinc" size="sm">Nota: {{ $q['grade'] ?? 0 }}</flux:badge>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold uppercase text-zinc-500 mb-1">Feedback da IA:</div>
+                                    <p class="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">{{ trim($q['feedback'] ?? 'Sem feedback fornecido.') }}</p>
+                                </div>
+                            </flux:card>
+                        @endforeach
+                    </div>
+                @endif
+            @else
+                <div class="flex items-center justify-center py-12">
+                    <flux:badge color="zinc" class="animate-pulse">Carregando feedback...</flux:badge>
+                </div>
+            @endif
+        </div>
+    </flux:modal>
+
+    <!-- Modal Compartilhado: Visualização da Prova -->
+    <flux:modal name="preview-file-modal" class="w-[95vw] h-[95vh] max-w-none">
+        <div class="h-full flex flex-col space-y-4">
+            <div class="flex justify-between items-center px-2">
+                <flux:heading size="lg">Visualizando Prova: {{ $viewing_student_name }}</flux:heading>
+                <div class="flex gap-2">
+                    @if($viewing_file_url)
+                        <flux:button href="{{ $viewing_file_url }}" download variant="filled" size="sm" icon="arrow-down-tray">Baixar PDF</flux:button>
+                    @endif
+                    <flux:modal.close>
+                        <flux:button variant="ghost" size="sm" icon="x-mark">Fechar</flux:button>
+                    </flux:modal.close>
+                </div>
+            </div>
+            
+            <div class="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-inner">
+                @if($viewing_file_url)
+                    <iframe src="{{ $viewing_file_url }}" class="w-full h-full" frameborder="0"></iframe>
+                @else
+                    <div class="flex items-center justify-center h-full">
+                        <flux:badge color="zinc" class="animate-pulse">Carregando arquivo...</flux:badge>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </flux:modal>
 </div>

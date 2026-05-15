@@ -11,7 +11,11 @@ new #[Layout('layouts.main')] class extends Component {
     public function with(): array
     {
         return [
-            'evaluations' => auth()->user()->examEvaluations()->latest()->paginate(10),
+            'evaluations' => auth()->user()
+                ->examEvaluations()
+                ->withCount('submissions')
+                ->latest()
+                ->paginate(10),
         ];
     }
 
@@ -50,7 +54,7 @@ new #[Layout('layouts.main')] class extends Component {
                             <div class="text-sm text-zinc-500">{{ Str::limit($evaluation->grading_criteria, 50) }}</div>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge size="sm" color="zinc">{{ $evaluation->submissions()->count() }} submissões
+                            <flux:badge size="sm" color="zinc">{{ $evaluation->submissions_count }} submissões
                             </flux:badge>
                         </flux:table.cell>
                         <flux:table.cell>

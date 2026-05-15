@@ -5,8 +5,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Layout('layouts.main')] class extends Component
-{
+new #[Layout('layouts.main')] class extends Component {
     use WithPagination;
 
     public $selectedLog = null;
@@ -42,11 +41,13 @@ new #[Layout('layouts.main')] class extends Component
             <flux:heading size="xl">Logs da Inteligência Artificial</flux:heading>
             <flux:subheading>Acompanhe e diagnostique falhas de comunicação com a API do Gemini.</flux:subheading>
         </div>
-        <flux:button wire:click="clearLogs" wire:confirm="Tem certeza que deseja apagar todos os logs do banco?" variant="danger" icon="trash">Limpar Logs</flux:button>
+        <flux:button wire:click="clearLogs" wire:confirm="Tem certeza que deseja apagar todos os logs do banco?"
+            variant="danger" icon="trash">Limpar Logs</flux:button>
     </div>
 
     @if (session('status'))
-        <div class="mb-4 p-4 text-sm text-green-700 bg-green-100 rounded-lg dark:bg-green-200 dark:text-green-800" role="alert">
+        <div class="mb-4 p-4 text-sm text-green-700 bg-green-100 rounded-lg dark:bg-green-200 dark:text-green-800"
+            role="alert">
             {{ session('status') }}
         </div>
     @endif
@@ -63,7 +64,8 @@ new #[Layout('layouts.main')] class extends Component
             <flux:table.rows>
                 @forelse ($logs as $log)
                     <flux:table.row>
-                        <flux:table.cell class="whitespace-nowrap">{{ $log->created_at->format('d/m/Y H:i:s') }}</flux:table.cell>
+                        <flux:table.cell class="whitespace-nowrap">{{ $log->created_at->format('d/m/Y H:i:s') }}
+                        </flux:table.cell>
                         <flux:table.cell>
                             <flux:badge color="zinc" size="sm">{{ $log->module }}</flux:badge>
                         </flux:table.cell>
@@ -71,7 +73,8 @@ new #[Layout('layouts.main')] class extends Component
                             {{ Str::limit(explode("\n", $log->error_message)[0], 80) }}
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:button size="sm" variant="ghost" wire:click="viewDetails({{ $log->id }})">Ver Detalhes</flux:button>
+                            <flux:button size="sm" variant="ghost" wire:click="viewDetails({{ $log->id }})">
+                                Ver Detalhes</flux:button>
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
@@ -92,12 +95,13 @@ new #[Layout('layouts.main')] class extends Component
 
     <flux:modal wire:model="showLogModal" class="min-w-[600px] max-w-4xl">
         <div class="space-y-6">
-            @if($selectedLog)
+            @if ($selectedLog)
                 <div>
                     <flux:heading size="lg">Detalhes do Erro</flux:heading>
-                    <flux:subheading>Módulo: {{ $selectedLog->module }} | Data: {{ $selectedLog->created_at->format('d/m/Y H:i:s') }}</flux:subheading>
+                    <flux:subheading>Módulo: {{ $selectedLog->module }} | Data:
+                        {{ $selectedLog->created_at->format('d/m/Y H:i:s') }}</flux:subheading>
                 </div>
-                
+
                 <div class="space-y-4">
                     <div>
                         <flux:heading size="sm" class="mb-2">Payload da Requisição</flux:heading>
@@ -108,8 +112,9 @@ new #[Layout('layouts.main')] class extends Component
 
                     <div>
                         <flux:heading size="sm" class="mb-2">Stack Trace / Exceção</flux:heading>
-                        <div class="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 p-4 rounded-lg overflow-x-auto max-h-96 overflow-y-auto">
-                            <pre class="text-xs text-red-800 dark:text-red-400 font-mono whitespace-pre-wrap">{{ $selectedLog->error_message }}</pre>
+                        <div
+                            class="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 p-4 rounded-lg overflow-x-auto max-h-96 overflow-y-auto">
+                            <pre class="text-xs text-red-800 dark:text-red-400 font-mono">{{ $selectedLog->error_message }}</pre>
                         </div>
                     </div>
                 </div>

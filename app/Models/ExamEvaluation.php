@@ -2,19 +2,20 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'title', 'answer_key_file_path', 'exam_file_path', 'grading_criteria', 'status'])]
+#[Fillable(['user_id', 'title', 'answer_key_file_path', 'exam_file_path', 'grading_criteria', 'status', 'google_course_id', 'google_coursework_id'])]
 class ExamEvaluation extends Model
 {
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function submissions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function submissions(): HasMany
     {
         return $this->hasMany(ExamSubmission::class);
     }

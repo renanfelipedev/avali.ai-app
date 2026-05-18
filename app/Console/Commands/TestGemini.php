@@ -32,7 +32,7 @@ class TestGemini extends Command
         $modelName = config('gemini.default_model');
         $this->line("Modelo configurado: <comment>{$modelName}</comment>");
 
-        $prompt = <<<PROMPT
+        $prompt = <<<'PROMPT'
 Gere duas questões simples de conhecimentos gerais.
 A resposta deve ser ESTRITAMENTE um JSON válido no seguinte formato:
 [
@@ -67,12 +67,12 @@ PROMPT;
                     return [$item['pergunta'] ?? 'N/A', $item['resposta_correta'] ?? 'N/A'];
                 })->toArray());
             } else {
-                $this->error("\n❌ Erro: O retorno não é um JSON válido. (" . json_last_error_msg() . ")");
+                $this->error("\n❌ Erro: O retorno não é um JSON válido. (".json_last_error_msg().')');
             }
         } catch (Throwable $e) {
             $this->error("\n❌ Falha ao comunicar com a IA:");
             $this->error($e->getMessage());
-            $this->error("Arquivo: " . $e->getFile() . " (Linha " . $e->getLine() . ")");
+            $this->error('Arquivo: '.$e->getFile().' (Linha '.$e->getLine().')');
         }
     }
 }

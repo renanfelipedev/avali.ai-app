@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\AiLog;
 use App\Models\Exam;
 use App\Models\ExamGenerationRequest;
-use Gemini\Laravel\Facades\Gemini;
 use Gemini\Data\Blob;
 use Gemini\Enums\MimeType;
+use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -66,7 +67,7 @@ PROMPT;
             // Call Gemini via Fallback Service
             $response = $this->aiService->generateContent($parts);
             $generatedText = trim($response->text());
-            
+
             // Extract JSON from potential Markdown code blocks
             if (preg_match('/```json\s*(.*?)\s*```/s', $generatedText, $matches)) {
                 $generatedText = $matches[1];
@@ -78,29 +79,29 @@ PROMPT;
 
             // Interpret JSON using PHP tools to validate and extract data
             $examData = json_decode($generatedText, true);
-            
+
             if (json_last_error() !== JSON_ERROR_NONE) {
                 // Tentar limpar possíveis sujeiras antes ou depois do JSON caso o regex tenha falhado parcialmente
                 $cleanJson = preg_replace('/^[^{]*({.*})[^}]*$/s', '$1', $generatedText);
                 $examData = json_decode($cleanJson, true);
-                
+
                 if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new \Exception('O retorno da IA não é um JSON válido: ' . json_last_error_msg());
+                    throw new \Exception('O retorno da IA não é um JSON válido: '.json_last_error_msg());
                 }
                 $generatedText = $cleanJson;
             }
 
             // Save the generated exam as a JSON file
-            $fileName = 'exam_' . Str::uuid() . '.json';
-            $filePath = 'generated_exams/' . $fileName;
+            $fileName = 'exam_'.Str::uuid().'.json';
+            $filePath = 'generated_exams/'.$fileName;
 
             Storage::disk('public')->put($filePath, $generatedText);
 
             // Create the Exam record
             $exam = Exam::create([
                 'user_id' => $request->user_id,
-                'title' => $examData['title'] ?? ('Prova Gerada: ' . Str::limit($topics, 50)),
-                'description' => 'Prova de ' . $request->questions_count . ' questões. Temas: ' . $topics,
+                'title' => $examData['title'] ?? ('Prova Gerada: '.Str::limit($topics, 50)),
+                'description' => 'Prova de '.$request->questions_count.' questões. Temas: '.$topics,
                 'file_path' => $filePath,
                 'original_name' => $fileName,
                 'mime_type' => 'application/json',
@@ -108,7 +109,7 @@ PROMPT;
             ]);
 
             // Log successful generation with tokens
-            \App\Models\AiLog::create([
+            AiLog::create([
                 'module' => 'ExamGeneration',
                 'tokens_used' => $response->usageMetadata->totalTokenCount ?? 0,
                 'request_payload' => [
@@ -126,9 +127,9 @@ PROMPT;
                 'error_message' => $e->getMessage(),
             ]);
 
-            \App\Models\AiLog::create([
+            AiLog::create([
                 'module' => 'ExamGeneration',
-                'error_message' => $e->getMessage() . "\n" . $e->getTraceAsString(),
+                'error_message' => $e->getMessage()."\n".$e->getTraceAsString(),
                 'request_payload' => [
                     'exam_generation_request_id' => $request->id,
                     'user_id' => $request->user_id,

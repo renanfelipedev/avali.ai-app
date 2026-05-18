@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Console\Command;
+use Smalot\PdfParser\Parser;
 use Throwable;
 
 class IaTest extends Command
@@ -71,7 +72,7 @@ PROMPT;
             return self::SUCCESS;
         } catch (Throwable $exception) {
             $this->error('Falha ao processar a correção com o Gemini.');
-            $this->line('Motivo: ' . $exception->getMessage());
+            $this->line('Motivo: '.$exception->getMessage());
 
             return self::FAILURE;
         }
@@ -82,14 +83,17 @@ PROMPT;
         if (file_exists($input)) {
             if (str_ends_with(strtolower($input), '.pdf')) {
                 try {
-                    $parser = new \Smalot\PdfParser\Parser();
+                    $parser = new Parser;
                     $pdf = $parser->parseFile($input);
+
                     return $pdf->getText();
                 } catch (Throwable $e) {
-                    $this->warn("Falha ao extrair texto do PDF {$input}: " . $e->getMessage());
+                    $this->warn("Falha ao extrair texto do PDF {$input}: ".$e->getMessage());
+
                     return file_get_contents($input);
                 }
             }
+
             return file_get_contents($input);
         }
 

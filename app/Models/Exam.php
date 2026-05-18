@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Model;
-
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['user_id', 'title', 'description', 'file_path', 'original_name', 'mime_type', 'file_size', 'scheduled_at', 'sent_at'])]
 class Exam extends Model
 {
-
     /**
      * @return array<string, string>
      */

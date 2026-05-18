@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\HomeController;
@@ -11,6 +12,10 @@ Route::post('/login', [SessionController::class, 'store'])->name('login');
 
 Route::get('/cadastro', [RegisterController::class, 'create'])->name('cadastro');
 Route::post('/cadastro', [RegisterController::class, 'store'])->name('cadastro');
+
+// Google OAuth
+Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 Route::middleware('auth')->group(function () {
     Route::any('/logout', [SessionController::class, 'destroy'])->name('logout');

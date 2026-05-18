@@ -4,10 +4,10 @@ namespace App\Services;
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use Exception;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
-use Exception;
 
 class PdfConverterService
 {
@@ -28,7 +28,7 @@ class PdfConverterService
         $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
         $directory = pathinfo($sourceRelativePath, PATHINFO_DIRNAME);
         $filename = pathinfo($sourceRelativePath, PATHINFO_FILENAME);
-        $pdfRelativePath = ($directory === '.' ? '' : $directory . '/') . $filename . '.pdf';
+        $pdfRelativePath = ($directory === '.' ? '' : $directory.'/').$filename.'.pdf';
 
         if ($extension === 'pdf') {
             return $sourceRelativePath;
@@ -50,7 +50,7 @@ class PdfConverterService
     {
         $imageData = base64_encode(file_get_contents($fullPath));
         $mimeType = mime_content_type($fullPath);
-        
+
         $html = "
             <html>
             <body style='margin:0; padding:0; text-align:center;'>
@@ -80,24 +80,24 @@ class PdfConverterService
     {
         try {
             $phpWord = IOFactory::load($fullPath);
-            
+
             // Temporary file to save PDF
             $tempPdf = tempnam(sys_get_temp_dir(), 'pdf_');
             $writer = IOFactory::createWriter($phpWord, 'PDF');
             $writer->save($tempPdf);
-            
+
             $content = file_get_contents($tempPdf);
             unlink($tempPdf);
-            
+
             return $content;
         } catch (Exception $e) {
-            throw new Exception("Erro ao converter DOC/DOCX para PDF: " . $e->getMessage());
+            throw new Exception('Erro ao converter DOC/DOCX para PDF: '.$e->getMessage());
         }
     }
 
     private function renderHtmlToPdf(string $html): string
     {
-        $options = new Options();
+        $options = new Options;
         $options->set('isHtml5ParserEnabled', true);
         $options->set('isRemoteEnabled', true);
 

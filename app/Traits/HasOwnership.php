@@ -11,7 +11,7 @@ trait HasOwnership
      */
     protected function authorizeOwnership(?Model $model): void
     {
-        if (!$model) {
+        if (! $model) {
             abort(404, 'Recurso não encontrado.');
         }
 

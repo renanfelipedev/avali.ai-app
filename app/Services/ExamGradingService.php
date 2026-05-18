@@ -2,19 +2,23 @@
 
 namespace App\Services;
 
+use App\Models\AiLog;
 use App\Models\ExamEvaluation;
 use App\Models\ExamSubmission;
-use Gemini\Laravel\Facades\Gemini;
 use Gemini\Data\Blob;
-use Gemini\Data\Part;
 use Gemini\Enums\MimeType;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\Element\TextRun;
+use PhpOffice\PhpWord\IOFactory;
 use Throwable;
 
 class ExamGradingService
 {
     protected AiService $aiService;
+
     protected PdfConverterService $pdfConverter;
+
     protected string $module = 'ExamGrading';
 
     public function __construct(AiService $aiService, PdfConverterService $pdfConverter)
@@ -38,14 +42,14 @@ class ExamGradingService
 
         try {
             $submission->update(['status_message' => 'Normalizando documentos (PDF)...']);
-            
+
             // Normalize documents in background
-            if (!empty($evaluation->answer_key_file_path)) {
+            if (! empty($evaluation->answer_key_file_path)) {
                 $evaluation->answer_key_file_path = $this->pdfConverter->convertToPdf($evaluation->answer_key_file_path);
                 $evaluation->save();
             }
 
-            if (!empty($evaluation->exam_file_path)) {
+            if (! empty($evaluation->exam_file_path)) {
                 $evaluation->exam_file_path = $this->pdfConverter->convertToPdf($evaluation->exam_file_path);
                 $evaluation->save();
             }
@@ -59,19 +63,19 @@ class ExamGradingService
             $parts = [$prompt];
 
             // Answer Key
-            if (!empty($evaluation->answer_key_file_path)) {
-                $parts[] = "DOCUMENTO A (GABARITO DE REFERÊNCIA):";
+            if (! empty($evaluation->answer_key_file_path)) {
+                $parts[] = 'DOCUMENTO A (GABARITO DE REFERÊNCIA):';
                 $parts[] = $this->createBlobFromPath($evaluation->answer_key_file_path);
             }
 
             // Blank Exam Template
-            if (!empty($evaluation->exam_file_path)) {
-                $parts[] = "DOCUMENTO B (PROVA ORIGINAL EM BRANCO):";
+            if (! empty($evaluation->exam_file_path)) {
+                $parts[] = 'DOCUMENTO B (PROVA ORIGINAL EM BRANCO):';
                 $parts[] = $this->createBlobFromPath($evaluation->exam_file_path);
             }
 
             // Student Submission
-            $parts[] = "DOCUMENTO FINAL (PROVA DO ALUNO A SER CORRIGIDA):";
+            $parts[] = 'DOCUMENTO FINAL (PROVA DO ALUNO A SER CORRIGIDA):';
             $parts[] = $this->prepareStudentPart($submission->student_file_path);
 
             $submission->update(['status_message' => 'Consultando Inteligência Artificial...']);
@@ -83,13 +87,33 @@ class ExamGradingService
             $submission->update(['status_message' => 'Finalizando resultados...']);
 
             $submission->update([
-                'student_name'   => $result['student_name'] ?? ($submission->student_name ?: 'Aluno Desconhecido'),
-                'final_grade'    => $result['final_grade'] ?? 0,
-                'feedback_data'  => $result['questions'] ?? [],
-                'transcription'  => $result['full_transcription'] ?? null,
-                'status'         => 'completed',
+                'student_name' => $result['student_name'] ?? ($submission->student_name ?: 'Aluno Desconhecido'),
+                'final_grade' => $result['final_grade'] ?? 0,
+                'feedback_data' => $result['questions'] ?? [],
+                'transcription' => $result['full_transcription'] ?? null,
+                'status' => 'completed',
                 'status_message' => 'Concluído com sucesso',
             ]);
+
+            // Se a avaliação e submissão estiverem vinculadas ao Google Classroom, enviar a nota de volta
+            if (! empty($evaluation->google_course_id) && ! empty($evaluation->google_coursework_id) && ! empty($submission->google_submission_id)) {
+                try {
+                    $classroomService = app(GoogleClassroomService::class);
+                    $classroomService->updateSubmissionGrade(
+                        $evaluation->user,
+                        $evaluation->google_course_id,
+                        $evaluation->google_coursework_id,
+                        $submission->google_submission_id,
+                        (float) ($result['final_grade'] ?? 0),
+                        'Correção automática do avali.ai concluída com sucesso!'
+                    );
+                } catch (Throwable $classroomEx) {
+                    Log::error('Erro ao enviar nota para o Google Classroom: '.$classroomEx->getMessage(), [
+                        'submission_id' => $submission->id,
+                        'evaluation_id' => $evaluation->id,
+                    ]);
+                }
+            }
 
             $this->logInteraction($submission->id, $evaluation->id, [
                 'tokens_used' => $response->usageMetadata->totalTokenCount ?? 0,
@@ -104,6 +128,7 @@ class ExamGradingService
     private function createBlobFromPath(string $path): Blob
     {
         $fullPath = Storage::disk('public')->path($path);
+
         return new Blob(
             mimeType: $this->getMimeType($fullPath),
             data: base64_encode(file_get_contents($fullPath))
@@ -116,7 +141,7 @@ class ExamGradingService
         $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
 
         if (in_array($extension, ['docx', 'txt'])) {
-            return "CONTEÚDO DA PROVA DO ALUNO (Documento B):\n\n" . $this->extractText($fullPath, $extension);
+            return "CONTEÚDO DA PROVA DO ALUNO (Documento B):\n\n".$this->extractText($fullPath, $extension);
         }
 
         return $this->createBlobFromPath($filePath);
@@ -136,7 +161,7 @@ class ExamGradingService
         $data = json_decode($text, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception('O retorno do Gemini não foi um JSON válido: ' . json_last_error_msg() . "\n\nResposta Bruta:\n" . $rawText);
+            throw new \Exception('O retorno do Gemini não foi um JSON válido: '.json_last_error_msg()."\n\nResposta Bruta:\n".$rawText);
         }
 
         return $data;
@@ -148,8 +173,8 @@ class ExamGradingService
         $isTransient = $this->isTransientError($errorMessage);
 
         $this->logInteraction($submission->id, $evaluation->id, [
-            'error_message' => $errorMessage . "\n" . $e->getTraceAsString(),
-            'is_transient'  => $isTransient,
+            'error_message' => $errorMessage."\n".$e->getTraceAsString(),
+            'is_transient' => $isTransient,
         ], true);
 
         if ($isTransient) {
@@ -157,9 +182,9 @@ class ExamGradingService
         }
 
         $submission->update([
-            'status'         => 'error',
+            'status' => 'error',
             'status_message' => 'Erro na correção',
-            'error_message'  => $errorMessage,
+            'error_message' => $errorMessage,
         ]);
 
         return false;
@@ -169,9 +194,11 @@ class ExamGradingService
     {
         $message = strtolower($message);
         $transientKeywords = ['timed out', 'high demand', 'too many requests', 'quota exceeded', 'rate limit', 'service unavailable'];
-        
+
         foreach ($transientKeywords as $keyword) {
-            if (str_contains($message, $keyword)) return true;
+            if (str_contains($message, $keyword)) {
+                return true;
+            }
         }
 
         return false;
@@ -180,7 +207,7 @@ class ExamGradingService
     private function logInteraction(int $submissionId, int $evaluationId, array $data, bool $isError = false): void
     {
         $payload = [
-            'module'          => $this->module,
+            'module' => $this->module,
             'request_payload' => array_merge([
                 'exam_submission_id' => $submissionId,
                 'exam_evaluation_id' => $evaluationId,
@@ -193,7 +220,7 @@ class ExamGradingService
             $payload['tokens_used'] = $data['tokens_used'] ?? 0;
         }
 
-        \App\Models\AiLog::create($payload);
+        AiLog::create($payload);
     }
 
     private function extractText(string $filePath, string $extension): string
@@ -204,13 +231,13 @@ class ExamGradingService
 
         if ($extension === 'docx') {
             try {
-                $phpWord = \PhpOffice\PhpWord\IOFactory::load($filePath);
+                $phpWord = IOFactory::load($filePath);
                 $text = '';
                 foreach ($phpWord->getSections() as $section) {
                     foreach ($section->getElements() as $element) {
                         if (method_exists($element, 'getText')) {
-                            $text .= $element->getText() . "\n";
-                        } elseif ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
+                            $text .= $element->getText()."\n";
+                        } elseif ($element instanceof TextRun) {
                             foreach ($element->getElements() as $textElement) {
                                 if (method_exists($textElement, 'getText')) {
                                     $text .= $textElement->getText();
@@ -220,13 +247,14 @@ class ExamGradingService
                         }
                     }
                 }
+
                 return $text;
             } catch (Throwable $e) {
-                return "Erro ao extrair texto do DOCX: " . $e->getMessage();
+                return 'Erro ao extrair texto do DOCX: '.$e->getMessage();
             }
         }
 
-        return "";
+        return '';
     }
 
     private function getMimeType(string $filePath): MimeType
@@ -256,8 +284,8 @@ class ExamGradingService
         $promptBase = file_exists($promptReferencePath) ? file_get_contents($promptReferencePath) : 'Você é um Especialista em Avaliação Educacional de alta precisão.';
 
         $criteria = $evaluation->grading_criteria ?? 'Avalie de 0 a 10 seguindo os padrões educacionais brasileiros.';
-        $hasAnswerKey = !empty($evaluation->answer_key_file_path);
-        $hasExamFile = !empty($evaluation->exam_file_path);
+        $hasAnswerKey = ! empty($evaluation->answer_key_file_path);
+        $hasExamFile = ! empty($evaluation->exam_file_path);
 
         return <<<PROMPT
 {$promptBase}
@@ -299,5 +327,4 @@ PROMPT;
     {
         return $val ? 'SIM' : 'NÃO';
     }
-
 }

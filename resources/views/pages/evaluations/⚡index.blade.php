@@ -26,6 +26,7 @@ new #[Layout('layouts.main')] class extends Component {
         }
 
         $evaluation->delete();
+        session()->flash('status', 'Avaliação excluída com sucesso.');
     }
 };
 ?>

@@ -47,6 +47,7 @@ new #[Layout('layouts.main')] class extends Component {
         }
 
         $this->evaluation->update(['status' => 'processing']);
+        session()->flash('status', 'Correção reiniciada para os arquivos com falha.');
         $this->loadSubmissions();
     }
 
@@ -58,6 +59,7 @@ new #[Layout('layouts.main')] class extends Component {
         $this->requeueSubmission($submission);
 
         $this->evaluation->update(['status' => 'processing']);
+        session()->flash('status', 'Correção reiniciada para o aluno ' . $submission->student_name . '.');
         $this->loadSubmissions();
     }
 

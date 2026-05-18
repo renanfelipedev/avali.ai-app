@@ -7,6 +7,8 @@
             <flux:heading class="text-center" size="xl">Login</flux:heading>
             <flux:subheading class="text-center">Bem-vindo de volta ao futuro da educação.</flux:subheading>
 
+            <x-flash />
+
             <form action="{{ route('login') }}" method="POST">
                 @csrf
                 <div class="flex flex-col gap-6">

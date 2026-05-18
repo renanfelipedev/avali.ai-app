@@ -9,6 +9,8 @@
 
                 <flux:heading class="text-center mb-4" size="xl">Cadastre-se</flux:heading>
 
+                <x-flash />
+
                 <div class="flex flex-col gap-2">
                     <flux:input label="Nome completo" value="{{ old('name') }}" name="name" placeholder="email@exemplo.com" />
 

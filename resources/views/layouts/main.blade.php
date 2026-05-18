@@ -13,6 +13,8 @@
                 <flux:separator variant="subtle" class="mb-6" />
             @endif
 
+            <x-flash />
+
             @yield('content')
             {{ $slot ?? '' }}
         </flux:main>

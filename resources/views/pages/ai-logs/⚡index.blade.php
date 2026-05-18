@@ -45,13 +45,6 @@ new #[Layout('layouts.main')] class extends Component {
             variant="danger" icon="trash">Limpar Logs</flux:button>
     </div>
 
-    @if (session('status'))
-        <div class="mb-4 p-4 text-sm text-green-700 bg-green-100 rounded-lg dark:bg-green-200 dark:text-green-800"
-            role="alert">
-            {{ session('status') }}
-        </div>
-    @endif
-
     <flux:card>
         <flux:table>
             <flux:table.columns>

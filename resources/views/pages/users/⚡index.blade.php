@@ -109,13 +109,6 @@ new #[Layout('layouts.main')] class extends Component {
         <flux:button variant="primary" icon="plus" wire:click="createUser">Adicionar Usuário</flux:button>
     </div>
 
-    @if (session('status'))
-        <flux:callout variant="success" class="mb-4">{{ session('status') }}</flux:callout>
-    @endif
-    @if (session('error'))
-        <flux:callout variant="danger" class="mb-4">{{ session('error') }}</flux:callout>
-    @endif
-
     <flux:card>
         <flux:table>
             <flux:table.columns>

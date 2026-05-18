@@ -19,7 +19,7 @@ O **avali.ai** é uma plataforma revolucionária que utiliza Inteligência Artif
 O avali.ai é construído sobre as fundações mais robustas do desenvolvimento moderno:
 
 - **Framework**: Laravel 13
-- **Frontend**: Livewire 4 + Flux UI 2.x
+- **Frontend**: Livewire 4 + Flux UI 2.x (com Heroicons)
 - **IA**: Google Gemini API
 - **Fila**: Redis / Database Queues
 - **Processamento de Doc**: PhpWord & OCR Multimodal

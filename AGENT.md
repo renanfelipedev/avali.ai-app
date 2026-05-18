@@ -12,7 +12,7 @@ This document provides essential context and guidelines for AI agents working on
 ## 🛠 Tech Stack
 - **PHP**: 8.3
 - **Framework**: Laravel 13 (v13.x)
-- **Frontend**: Livewire 4, Flux UI v2 (Premium Component Library)
+- **Frontend**: Livewire 4, Flux UI v2 (Premium Component Library, com Heroicons)
 - **Styling**: Tailwind CSS (integrated via Flux UI)
 - **Testing**: Pest 4, PHPUnit 12
 - **Database**: SQLite (default for local development)

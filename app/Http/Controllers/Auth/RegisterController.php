@@ -29,6 +29,8 @@ class RegisterController extends Controller
 
         Auth::login($user);
 
+        session()->flash('status', 'Cadastro realizado com sucesso! Bem-vindo(a).');
+
         return to_route('home');
     }
 }

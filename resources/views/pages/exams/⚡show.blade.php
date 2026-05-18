@@ -66,12 +66,6 @@ new #[Layout('layouts.main')] class extends Component
         </div>
     </div>
 
-    @if (session('error'))
-        <div class="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-200 dark:text-red-800" role="alert">
-            {{ session('error') }}
-        </div>
-    @endif
-
     <flux:card>
         @if($isJson && $jsonData)
             <div class="space-y-12">

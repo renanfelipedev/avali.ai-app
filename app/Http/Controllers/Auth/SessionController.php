@@ -29,6 +29,7 @@ class SessionController extends Controller
             }
 
             Auth::login($user);
+            session()->flash('status', 'Login realizado com sucesso! Bem-vindo(a) de volta.');
             return to_route('home');
         }
 
@@ -38,6 +39,8 @@ class SessionController extends Controller
     public function destroy()
     {
         auth()->logout();
+
+        session()->flash('status', 'Você saiu da sua conta com sucesso.');
 
         return to_route('login');
     }

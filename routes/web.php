@@ -40,6 +40,9 @@ Route::middleware('auth')->group(function () {
     // Módulo de Gerenciamento de Tarefas em Background
     Route::livewire('/tasks', 'pages::tasks.index')->name('tasks.index');
 
+    // Módulo de Perfil do Usuário
+    Route::livewire('/profile', 'pages::profile.index')->name('profile');
+
     // Application Health (Production Only)
     Route::livewire('/health', 'pages::health.index')
         ->name('health')

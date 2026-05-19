@@ -71,6 +71,9 @@
         <flux:sidebar.profile name="{{ auth()->user()->name }}" />
 
         <flux:menu>
+            <flux:menu.item icon="user" href="{{ route('profile') }}">
+                Meu Perfil
+            </flux:menu.item>
             <flux:menu.item icon="arrow-right-start-on-rectangle" href="{{ route('logout') }}">
                 Logout
             </flux:menu.item>

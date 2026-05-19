@@ -32,13 +32,23 @@ class ExamGenerationService
 
             $topics = is_array($request->topics) ? implode(', ', $request->topics) : $request->topics;
 
+            $additionalCriteriaSection = '';
+            if (! empty($request->additional_criteria)) {
+                $additionalCriteriaSection = "\n- Critérios Adicionais / Instruções Especiais: {$request->additional_criteria}";
+            }
+
+            $titleSection = '';
+            if (! empty($request->title)) {
+                $titleSection = "\n- Título Sugerido/Obrigatório para a Prova: {$request->title}";
+            }
+
             $prompt = <<<PROMPT
 $promptBase
 
 ## Parâmetros da Geração:
 - Questões Objetivas: {$request->objective_count}
 - Questões Discursivas: {$request->discursive_count}
-- Temas: {$topics}
+- Temas: {$topics}{$titleSection}{$additionalCriteriaSection}
 
 Sua resposta final deve ser exclusivamente a prova formulada em JSON puro.
 PROMPT;
@@ -100,7 +110,7 @@ PROMPT;
             // Create the Exam record
             $exam = Exam::create([
                 'user_id' => $request->user_id,
-                'title' => $examData['title'] ?? ('Prova Gerada: '.Str::limit($topics, 50)),
+                'title' => $request->title ?: ($examData['title'] ?? ('Prova Gerada: '.Str::limit($topics, 50))),
                 'description' => 'Prova de '.$request->questions_count.' questões. Temas: '.$topics,
                 'file_path' => $filePath,
                 'original_name' => $fileName,

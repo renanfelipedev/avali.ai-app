@@ -45,8 +45,9 @@ new #[Layout('layouts.main')] class extends Component {
             variant="danger" icon="trash">Limpar Logs</flux:button>
     </div>
 
-    <flux:card>
-        <flux:table>
+    <flux:card class="overflow-hidden">
+        <div class="overflow-x-auto w-full scrollbar-none">
+            <flux:table>
             <flux:table.columns>
                 <flux:table.column>Data</flux:table.column>
                 <flux:table.column>Módulo</flux:table.column>
@@ -66,8 +67,7 @@ new #[Layout('layouts.main')] class extends Component {
                             {{ Str::limit(explode("\n", $log->error_message)[0], 80) }}
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:button size="sm" variant="ghost" wire:click="viewDetails({{ $log->id }})">
-                                Ver Detalhes</flux:button>
+                            <flux:button size="sm" variant="ghost" icon="eye" wire:click="viewDetails({{ $log->id }})" />
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
@@ -79,7 +79,8 @@ new #[Layout('layouts.main')] class extends Component {
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>
-        </flux:table>
+            </flux:table>
+        </div>
 
         <div class="mt-4">
             {{ $logs->links() }}

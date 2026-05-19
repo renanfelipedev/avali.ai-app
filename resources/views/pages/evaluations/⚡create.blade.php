@@ -138,7 +138,7 @@ new #[Layout('layouts.main')] class extends Component {
 
             <flux:card class="space-y-6 shadow-sm border border-zinc-200 dark:border-zinc-800">
                 <flux:input wire:model="title" label="Título da Avaliação"
-                    placeholder="Ex: Prova de História - 2º Trimestre" required size="lg" />
+                    placeholder="Ex: Prova de História - 2º Trimestre" required />
 
                 <flux:textarea wire:model="grading_criteria" label="Critérios Adicionais (Opcional)"
                     placeholder="Ex: Valorize a interpretação histórica. Se citar a data correta, considere 0.5 pontos extras."

@@ -55,7 +55,7 @@ services:
     working_dir: /var/www
     volumes:
       - ./:/var/www
-    command: php artisan queue:work --verbose --tries=3 --timeout=90
+    command: sh -c "sleep 5 && php artisan queue:work --verbose --tries=3 --timeout=90"
     networks:
       - avaliai-network
     depends_on:

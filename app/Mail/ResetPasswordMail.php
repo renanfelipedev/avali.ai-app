@@ -2,16 +2,14 @@
 
 namespace App\Mail;
 
-use App\Models\AttendanceSession;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class AttendanceReportMail extends Mailable implements ShouldQueue
+class ResetPasswordMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
@@ -19,7 +17,9 @@ class AttendanceReportMail extends Mailable implements ShouldQueue
      * Create a new message instance.
      */
     public function __construct(
-        public AttendanceSession $session
+        public string $email,
+        public string $token,
+        public string $userName
     ) {
         $this->afterCommit();
     }
@@ -30,7 +30,7 @@ class AttendanceReportMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Lista de Presença Finalizada - Turma: '.$this->session->class_name,
+            subject: 'Recuperação de Senha - avali.ai',
         );
     }
 
@@ -40,20 +40,10 @@ class AttendanceReportMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            markdown: 'mail.attendance-report',
+            markdown: 'mail.reset-password',
             with: [
-                'session' => $this->session,
+                'resetUrl' => route('password.reset', ['token' => $this->token, 'email' => $this->email]),
             ],
         );
-    }
-
-    /**
-     * Get the attachments for the message.
-     *
-     * @return array<int, Attachment>
-     */
-    public function attachments(): array
-    {
-        return [];
     }
 }

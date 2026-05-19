@@ -25,8 +25,9 @@
 
 <body
     class="min-h-screen bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white">
+
     @yield('main')
-    {{ $slot ?? '' }}
+
 
     @livewireScripts
     @fluxScripts

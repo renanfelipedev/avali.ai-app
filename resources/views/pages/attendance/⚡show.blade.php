@@ -39,24 +39,11 @@ new #[Layout('layouts.main')] class extends Component
         // Close the session
         $this->session->update(['is_active' => false]);
 
-        // Generate PDF
-        $html = view('pdf.attendance-sheet', ['session' => $this->session])->render();
-        
-        $options = new \Dompdf\Options();
-        $options->set('isHtml5ParserEnabled', true);
-        $options->set('isRemoteEnabled', true);
-        
-        $dompdf = new \Dompdf\Dompdf($options);
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-        $pdfContent = $dompdf->output();
-
         // Dispatch Email
         \Illuminate\Support\Facades\Mail::to(auth()->user()->email)
-            ->send(new \App\Mail\AttendanceReportMail($this->session, $pdfContent));
+            ->send(new \App\Mail\AttendanceReportMail($this->session));
 
-        session()->flash('status', 'Chamada encerrada com sucesso! A lista de presença em PDF foi enviada para o seu e-mail.');
+        session()->flash('status', 'Chamada encerrada com sucesso! O relatório de presença foi enviado para o seu e-mail.');
     }
 
     public function downloadPdf()
@@ -87,22 +74,10 @@ new #[Layout('layouts.main')] class extends Component
     {
         $this->authorizeOwnership($this->session);
 
-        $html = view('pdf.attendance-sheet', ['session' => $this->session])->render();
-        
-        $options = new \Dompdf\Options();
-        $options->set('isHtml5ParserEnabled', true);
-        $options->set('isRemoteEnabled', true);
-        
-        $dompdf = new \Dompdf\Dompdf($options);
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-        $pdfContent = $dompdf->output();
-
         \Illuminate\Support\Facades\Mail::to(auth()->user()->email)
-            ->send(new \App\Mail\AttendanceReportMail($this->session, $pdfContent));
+            ->send(new \App\Mail\AttendanceReportMail($this->session));
 
-        session()->flash('status', 'E-mail com a lista de presença reenviado com sucesso.');
+        session()->flash('status', 'E-mail com o relatório de presença reenviado com sucesso.');
     }
 };
 ?>

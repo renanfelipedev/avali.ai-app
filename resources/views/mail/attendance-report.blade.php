@@ -10,9 +10,7 @@ A chamada online para a turma **{{ $session->class_name }}** foi encerrada com s
 * **Data/Hora:** {{ $session->created_at->format('d/m/Y H:i') }}
 * **Total de Estudantes Presentes:** {{ $session->records->count() }}
 
-A lista completa de presença em formato PDF foi gerada e anexada a este e-mail.
-
-Você também pode acessar e visualizar o registro completo diretamente na plataforma.
+A lista completa de presença está disponível para consulta e download em formato PDF diretamente na plataforma.
 
 <x-mail::button :url="route('attendance.show', $session->uuid)">
 Ver Chamada no Painel

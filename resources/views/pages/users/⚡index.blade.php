@@ -17,12 +17,13 @@ new #[Layout('layouts.main')] class extends Component {
     public $is_active = true;
     public $selectedRoles = [];
     public ?User $editingUser = null;
+    public $showUserModal = false;
 
     public function createUser()
     {
         $this->reset(['name', 'email', 'password', 'selectedRoles', 'editingUser']);
         $this->is_active = true;
-        $this->dispatch('modal-show', name: 'user-modal');
+        $this->showUserModal = true;
     }
 
     public function editUser(User $user)
@@ -34,7 +35,7 @@ new #[Layout('layouts.main')] class extends Component {
         $this->is_active = (bool) $user->is_active;
         $this->selectedRoles = $user->roles->pluck('id')->map(fn($id) => (string) $id)->toArray();
 
-        $this->dispatch('modal-show', name: 'user-modal');
+        $this->showUserModal = true;
     }
 
     public function save()
@@ -75,11 +76,9 @@ new #[Layout('layouts.main')] class extends Component {
         }
 
         $user->roles()->sync($this->selectedRoles);
-
-        $this->dispatch('modal-close', name: 'user-modal');
         session()->flash('status', $this->editingUser ? 'Usuário atualizado com sucesso.' : 'Usuário criado com sucesso.');
 
-        $this->reset(['name', 'email', 'password', 'selectedRoles', 'editingUser']);
+        $this->reset(['name', 'email', 'password', 'selectedRoles', 'editingUser', 'showUserModal']);
     }
 
     public function deleteUser(User $user)
@@ -166,7 +165,7 @@ new #[Layout('layouts.main')] class extends Component {
         </div>
     </flux:card>
 
-    <flux:modal name="user-modal" class="md:w-[500px]">
+    <flux:modal wire:model="showUserModal" class="md:w-[500px]">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ $editingUser ? 'Editar Usuário' : 'Novo Usuário' }}</flux:heading>

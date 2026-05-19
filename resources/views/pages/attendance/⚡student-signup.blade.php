@@ -2,15 +2,19 @@
 
 use App\Models\AttendanceSession;
 use App\Models\AttendanceRecord;
-use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-new #[Layout('layouts.app')] class extends Component
+new class extends Component
 {
     public AttendanceSession $session;
     public string $student_name = '';
     public bool $hasRegistered = false;
     public ?string $device_id = null;
+
+    public function rendering(\Illuminate\View\View $view)
+    {
+        $view->extends('layouts.app')->section('main');
+    }
 
     public function rules(): array
     {
@@ -91,7 +95,6 @@ new #[Layout('layouts.app')] class extends Component
     }
 };
 ?>
-
 <div 
     x-data="{
         init() {

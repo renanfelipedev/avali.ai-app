@@ -132,7 +132,9 @@ new #[Layout('layouts.main')] class extends Component {
         <!-- ETAPA 1: CONFIGURAÇÃO BÁSICA -->
         <section class="space-y-4">
             <div class="flex items-center gap-3 mb-2">
-                <flux:badge color="indigo" class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">1</flux:badge>
+                <flux:badge color="indigo"
+                    class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">1
+                </flux:badge>
                 <flux:heading size="lg" class="font-bold">Configurações da Avaliação</flux:heading>
             </div>
 
@@ -149,61 +151,65 @@ new #[Layout('layouts.main')] class extends Component {
                 <!-- GOOGLE CLASSROOM INTEGRATION MODULE -->
                 <div class="space-y-4">
                     <div class="flex items-center gap-3">
-                        <flux:checkbox wire:model.live="use_google_classroom"
-                            label="Vincular com o Google Classroom"
+                        <flux:checkbox wire:model.live="use_google_classroom" label="Vincular com o Google Classroom"
                             description="Associe esta correção a uma de suas turmas para sincronizar notas e atividades."
                             class="font-bold" />
                     </div>
 
-                    @if ($use_google_classroom)
-                        <div
-                            class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in pt-3 border-t border-zinc-200 dark:border-zinc-800/60">
-                            <!-- Course Select -->
-                            <div class="relative space-y-1">
-                                <flux:select wire:model.live="selected_course_id" label="Selecionar Turma"
-                                    placeholder="Escolha uma turma...">
-                                    @foreach ($google_courses as $course)
-                                        <flux:select.option value="{{ $course['id'] }}">{{ $course['name'] }}
-                                            @if ($course['section'])
-                                                ({{ $course['section'] }})
-                                            @endif
-                                        </flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                                <div wire:loading wire:target="use_google_classroom" class="absolute right-2 top-0">
-                                    <flux:badge color="indigo" size="sm" class="animate-pulse" icon="arrow-path">
-                                        Buscando...</flux:badge>
-                                </div>
-                            </div>
+                    <!-- Loading courses state -->
+                    <x-loading target="use_google_classroom" class="pt-3">
+                        Conectando ao Google Classroom e carregando turmas...
+                    </x-loading>
 
-                            <!-- CourseWork Select -->
-                            @if ($selected_course_id)
-                                <div class="relative space-y-1 animate-fade-in">
-                                    <flux:select wire:model.live="selected_coursework_id" label="Selecionar Atividade"
-                                        placeholder="Escolha uma atividade...">
-                                        @foreach ($google_courseworks as $cw)
-                                            <flux:select.option value="{{ $cw['id'] }}">{{ $cw['title'] }}
+                    @if ($use_google_classroom)
+                        <!-- Main Google Classroom Select Grid -->
+                        <div wire:loading.remove wire:target="use_google_classroom">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in pt-3">
+                                <!-- Course Select -->
+                                <div class="space-y-1">
+                                    <flux:select wire:model.live="selected_course_id" label="Selecionar Turma"
+                                        placeholder="Escolha uma turma...">
+                                        @foreach ($google_courses as $course)
+                                            <flux:select.option value="{{ $course['id'] }}">{{ $course['name'] }}
+                                                @if ($course['section'])
+                                                    ({{ $course['section'] }})
+                                                @endif
                                             </flux:select.option>
                                         @endforeach
                                     </flux:select>
-                                    <div wire:loading wire:target="selected_course_id" class="absolute right-2 top-0">
-                                        <flux:badge color="indigo" size="sm" class="animate-pulse"
-                                            icon="arrow-path">Buscando...</flux:badge>
+                                </div>
+
+                                <!-- Loading activities state -->
+                                <x-loading target="selected_course_id" size="micro" class="self-end h-[42px] mt-6">
+                                    Carregando atividades...
+                                </x-loading>
+
+                                <!-- CourseWork Select (or Loading) -->
+                                @if ($selected_course_id)
+                                    <div wire:loading.remove wire:target="selected_course_id"
+                                        class="space-y-1 animate-fade-in">
+                                        <flux:select wire:model.live="selected_coursework_id"
+                                            label="Selecionar Atividade" placeholder="Escolha uma atividade...">
+                                            @foreach ($google_courseworks as $cw)
+                                                <flux:select.option value="{{ $cw['id'] }}">{{ $cw['title'] }}
+                                                </flux:select.option>
+                                            @endforeach
+                                        </flux:select>
                                     </div>
+                                @endif
+                            </div>
+
+                            <!-- Sync Checkbox -->
+                            @if ($selected_coursework_id)
+                                <div wire:loading.remove wire:target="selected_course_id"
+                                    class="mt-4 p-4 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/40 space-y-3 animate-fade-in shadow-inner">
+                                    <flux:checkbox wire:model.live="import_from_classroom"
+                                        label="Importar entregas diretamente do Google Classroom"
+                                        description="O avali.ai baixará automaticamente todos os anexos de entregas dos alunos nesta atividade."
+                                        class="font-bold text-emerald-800 dark:text-emerald-300" />
                                 </div>
                             @endif
                         </div>
-
-                        <!-- Sync Checkbox -->
-                        @if ($selected_coursework_id)
-                            <div
-                                class="p-4 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/40 space-y-3 animate-fade-in shadow-inner">
-                                <flux:checkbox wire:model.live="import_from_classroom"
-                                    label="Importar entregas diretamente do Google Classroom"
-                                    description="O avali.ai baixará automaticamente todos os anexos de entregas dos alunos nesta atividade."
-                                    class="font-bold text-emerald-800 dark:text-emerald-300" />
-                            </div>
-                        @endif
                     @endif
                 </div>
             </flux:card>
@@ -212,7 +218,9 @@ new #[Layout('layouts.main')] class extends Component {
         <!-- ETAPA 2: DOCUMENTOS DE REFERÊNCIA -->
         <section class="space-y-4">
             <div class="flex items-center gap-3 mb-2">
-                <flux:badge color="indigo" class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">2</flux:badge>
+                <flux:badge color="indigo"
+                    class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">2
+                </flux:badge>
                 <div>
                     <flux:heading size="lg" class="font-bold">Documentos de Referência</flux:heading>
                     <flux:subheading>Forneça gabaritos ou modelos para que o Gemini AI tenha 99% de precisão.
@@ -289,7 +297,9 @@ new #[Layout('layouts.main')] class extends Component {
         <!-- ETAPA 3: SUBMISSÃO DOS ALUNOS -->
         <section class="space-y-4">
             <div class="flex items-center gap-3 mb-2">
-                <flux:badge color="indigo" class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">3</flux:badge>
+                <flux:badge color="indigo"
+                    class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">3
+                </flux:badge>
                 <div>
                     <flux:heading size="lg" class="font-bold">Provas dos Alunos</flux:heading>
                     <flux:subheading>Selecione as provas entregues pelos alunos para iniciar o pipeline de correção.
@@ -379,10 +389,9 @@ new #[Layout('layouts.main')] class extends Component {
             <flux:button href="{{ route('evaluations.index') }}" variant="ghost">Cancelar e Voltar</flux:button>
 
             <div class="flex items-center gap-4">
-                <div wire:loading wire:target="student_submissions">
-                    <flux:badge color="zinc" size="sm" class="animate-pulse" icon="arrow-path">Enviando
-                        arquivos...</flux:badge>
-                </div>
+                <x-loading target="student_submissions" variant="badge">
+                    Enviando arquivos...
+                </x-loading>
 
                 <flux:button type="submit" variant="primary" icon="sparkles" wire:loading.attr="disabled"
                     wire:target="save" class="font-bold">

@@ -173,9 +173,9 @@ new #[Layout('layouts.main')] class extends Component {
             <flux:button href="{{ route('home') }}" variant="ghost">Cancelar e Voltar</flux:button>
 
             <div class="flex items-center gap-4">
-                <div wire:loading wire:target="files">
-                    <flux:badge color="zinc" size="sm" class="animate-pulse" icon="arrow-path">Enviando arquivos...</flux:badge>
-                </div>
+                <x-loading target="files" variant="badge">
+                    Enviando arquivos...
+                </x-loading>
 
                 <flux:button type="submit" variant="primary" icon="sparkles" wire:loading.attr="disabled"
                     wire:target="save" class="font-bold">

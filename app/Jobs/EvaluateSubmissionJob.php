@@ -49,17 +49,17 @@ class EvaluateSubmissionJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        Log::error("EvaluateSubmissionJob FAILED for Submission #{$this->submission->id}: " . $exception->getMessage(), [
+        Log::error("EvaluateSubmissionJob FAILED for Submission #{$this->submission->id}: ".$exception->getMessage(), [
             'submission_id' => $this->submission->id,
-            'trace' => $exception->getTraceAsString()
+            'trace' => $exception->getTraceAsString(),
         ]);
 
         // Only update if not already marked as error by the service
         if ($this->submission->status !== 'error') {
             $this->submission->update([
                 'status' => 'error',
-                'error_message' => "Falha crítica no worker: " . $exception->getMessage(),
-                'status_message' => 'Falha técnica no processamento.'
+                'error_message' => 'Falha crítica no worker: '.$exception->getMessage(),
+                'status_message' => 'Falha técnica no processamento.',
             ]);
         }
     }

@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['exam_evaluation_id', 'student_name', 'student_file_path', 'final_grade', 'feedback_data', 'transcription', 'status', 'status_message', 'error_message'])]
+#[Fillable(['exam_evaluation_id', 'student_name', 'student_file_path', 'final_grade', 'feedback_data', 'transcription', 'status', 'status_message', 'error_message', 'google_submission_id'])]
 class ExamSubmission extends Model
 {
     /**
@@ -20,7 +20,7 @@ class ExamSubmission extends Model
         ];
     }
 
-    public function evaluation(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function evaluation(): BelongsTo
     {
         return $this->belongsTo(ExamEvaluation::class, 'exam_evaluation_id');
     }

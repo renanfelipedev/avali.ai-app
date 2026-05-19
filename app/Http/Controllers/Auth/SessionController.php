@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,12 +18,11 @@ class SessionController extends Controller
     {
         $data = $request->validate([
             'email' => 'required',
-            'password' => 'required'
+            'password' => 'required',
         ]);
 
-
         if (Auth::validate($data)) {
-            $user = \App\Models\User::where('email', $data['email'])->first();
+            $user = User::where('email', $data['email'])->first();
 
             if (! $user->is_active) {
                 return redirect()->back()->withErrors(['email' => 'Sua conta está inativa. Entre em contato com o administrador.']);
@@ -30,6 +30,7 @@ class SessionController extends Controller
 
             Auth::login($user);
             session()->flash('status', 'Login realizado com sucesso! Bem-vindo(a) de volta.');
+
             return to_route('home');
         }
 

@@ -35,37 +35,39 @@ new #[Layout('layouts.main')] class extends Component
         <flux:button href="{{ route('exams.create') }}" variant="primary" icon="plus">Solicitar Nova Prova</flux:button>
     </div>
 
-    <flux:card>
-        <flux:table>
-            <flux:table.columns>
-                <flux:table.column>Título / Tópicos</flux:table.column>
-                <flux:table.column>Data de Geração</flux:table.column>
-                <flux:table.column>Ações</flux:table.column>
-            </flux:table.columns>
+    <flux:card class="overflow-hidden">
+        <div class="overflow-x-auto w-full scrollbar-none">
+            <flux:table>
+                <flux:table.columns>
+                    <flux:table.column>Título / Tópicos</flux:table.column>
+                    <flux:table.column>Data de Geração</flux:table.column>
+                    <flux:table.column>Ações</flux:table.column>
+                </flux:table.columns>
 
-            <flux:table.rows>
-                @forelse ($exams as $exam)
-                    <flux:table.row>
-                        <flux:table.cell>
-                            <span class="font-medium text-zinc-900 dark:text-white">{{ $exam->title }}</span>
-                        </flux:table.cell>
-                        <flux:table.cell>{{ $exam->created_at->format('d/m/Y H:i') }}</flux:table.cell>
-                        <flux:table.cell>
-                            <div class="flex space-x-2">
-                                <flux:button size="sm" variant="ghost" href="{{ route('exams.show', $exam) }}">Visualizar</flux:button>
-                                <flux:button size="sm" variant="ghost" wire:click="deleteExam({{ $exam->id }})" wire:confirm="Tem certeza que deseja excluir esta prova?" class="text-red-600 hover:text-red-700">Excluir</flux:button>
-                            </div>
-                        </flux:table.cell>
-                    </flux:table.row>
-                @empty
-                    <flux:table.row>
-                        <flux:table.cell colspan="3" class="text-center py-6 text-zinc-500">
-                            Nenhuma prova gerada ainda. Solicite uma nova prova para começar!
-                        </flux:table.cell>
-                    </flux:table.row>
-                @endforelse
-            </flux:table.rows>
-        </flux:table>
+                <flux:table.rows>
+                    @forelse ($exams as $exam)
+                        <flux:table.row>
+                            <flux:table.cell>
+                                <span class="font-medium text-zinc-900 dark:text-white">{{ $exam->title }}</span>
+                            </flux:table.cell>
+                            <flux:table.cell>{{ $exam->created_at->format('d/m/Y H:i') }}</flux:table.cell>
+                            <flux:table.cell>
+                                <div class="flex items-center gap-2">
+                                    <flux:button href="{{ route('exams.show', $exam) }}" size="sm" variant="ghost" icon="eye" />
+                                    <flux:button wire:click="deleteExam({{ $exam->id }})" wire:confirm="Tem certeza que deseja excluir esta prova?" size="sm" variant="ghost" icon="trash" color="danger" />
+                                </div>
+                            </flux:table.cell>
+                        </flux:table.row>
+                    @empty
+                        <flux:table.row>
+                            <flux:table.cell colspan="3" class="text-center py-6 text-zinc-500">
+                                Nenhuma prova gerada ainda. Solicite uma nova prova para começar!
+                            </flux:table.cell>
+                        </flux:table.row>
+                    @endforelse
+                </flux:table.rows>
+            </flux:table>
+        </div>
 
         <div class="mt-4">
             {{ $exams->links() }}

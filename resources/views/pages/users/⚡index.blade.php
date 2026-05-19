@@ -109,8 +109,9 @@ new #[Layout('layouts.main')] class extends Component {
         <flux:button variant="primary" icon="plus" wire:click="createUser">Adicionar Usuário</flux:button>
     </div>
 
-    <flux:card>
-        <flux:table>
+    <flux:card class="overflow-hidden">
+        <div class="overflow-x-auto w-full scrollbar-none">
+            <flux:table>
             <flux:table.columns>
                 <flux:table.column>Nome</flux:table.column>
                 <flux:table.column>E-mail</flux:table.column>
@@ -143,13 +144,9 @@ new #[Layout('layouts.main')] class extends Component {
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>
-                            <div class="flex space-x-2">
-                                <flux:button size="sm" variant="ghost" icon="pencil-square"
-                                    wire:click="editUser({{ $user->id }})"></flux:button>
-                                <flux:button size="sm" variant="ghost" icon="trash"
-                                    wire:click="deleteUser({{ $user->id }})"
-                                    wire:confirm="Tem certeza que deseja excluir este usuário?"
-                                    class="text-red-600 hover:text-red-700"></flux:button>
+                            <div class="flex items-center gap-2">
+                                <flux:button wire:click="editUser({{ $user->id }})" size="sm" variant="ghost" icon="pencil-square" />
+                                <flux:button wire:click="deleteUser({{ $user->id }})" wire:confirm="Tem certeza que deseja excluir este usuário?" size="sm" variant="ghost" icon="trash" color="danger" />
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
@@ -162,6 +159,7 @@ new #[Layout('layouts.main')] class extends Component {
                 @endforelse
             </flux:table.rows>
         </flux:table>
+        </div>
 
         <div class="mt-4">
             {{ $users->links() }}

@@ -1,14 +1,18 @@
 <?php
+
+use Gemini\Laravel\Facades\Gemini;
+use Illuminate\Contracts\Console\Kernel;
+
 require 'vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
 try {
-    $models = \Gemini\Laravel\Facades\Gemini::models()->list();
+    $models = Gemini::models()->list();
     foreach ($models->models as $model) {
-        echo $model->name . "\n";
+        echo $model->name."\n";
     }
-} catch (\Exception $e) {
-    echo "ERROR: " . $e->getMessage() . "\n";
+} catch (Exception $e) {
+    echo 'ERROR: '.$e->getMessage()."\n";
 }

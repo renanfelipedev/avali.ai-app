@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\HomeController;
@@ -11,6 +12,10 @@ Route::post('/login', [SessionController::class, 'store'])->name('login');
 
 Route::get('/cadastro', [RegisterController::class, 'create'])->name('cadastro');
 Route::post('/cadastro', [RegisterController::class, 'store'])->name('cadastro');
+
+// Google OAuth
+Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 Route::middleware('auth')->group(function () {
     Route::any('/logout', [SessionController::class, 'destroy'])->name('logout');
@@ -35,8 +40,18 @@ Route::middleware('auth')->group(function () {
     // Módulo de Gerenciamento de Tarefas em Background
     Route::livewire('/tasks', 'pages::tasks.index')->name('tasks.index');
 
+    // Módulo de Chamada Online
+    Route::livewire('/attendance', 'pages::attendance.index')->name('attendance.index');
+    Route::livewire('/attendance/{session:uuid}', 'pages::attendance.show')->name('attendance.show');
+
+    // Módulo de Perfil do Usuário
+    Route::livewire('/profile', 'pages::profile.index')->name('profile');
+
     // Application Health (Production Only)
     Route::livewire('/health', 'pages::health.index')
         ->name('health')
         ->middleware('can:admin');
 });
+
+// Rota Pública do Aluno para registrar presença na Chamada
+Route::livewire('/c/{uuid}', 'pages::attendance.student-signup')->name('attendance.student-signup');

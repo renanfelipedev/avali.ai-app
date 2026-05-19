@@ -15,6 +15,7 @@ class GenerateExamJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $timeout = 300;
 
     protected $request;
@@ -36,7 +37,7 @@ class GenerateExamJob implements ShouldQueue
     {
         $this->request->update([
             'status' => 'error',
-            'error_message' => 'O processamento expirou ou falhou: ' . $exception->getMessage(),
+            'error_message' => 'O processamento expirou ou falhou: '.$exception->getMessage(),
         ]);
     }
 }

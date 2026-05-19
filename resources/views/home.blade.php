@@ -39,22 +39,26 @@
                     <flux:heading size="lg">Provas Recentes</flux:heading>
                     <flux:button href="{{ route('exams.index') }}" variant="ghost" size="sm">Ver todas</flux:button>
                 </div>
-                <flux:table>
-                    <flux:table.columns>
-                        <flux:table.column>Título</flux:table.column>
-                        <flux:table.column>Usuário</flux:table.column>
-                        <flux:table.column>Data</flux:table.column>
-                    </flux:table.columns>
-                    <flux:table.rows>
-                        @foreach ($stats['recent_exams'] ?? [] as $exam)
-                            <flux:table.row>
-                                <flux:table.cell class="font-medium">{{ $exam->title }}</flux:table.cell>
-                                <flux:table.cell>{{ $exam->user->name }}</flux:table.cell>
-                                <flux:table.cell>{{ $exam->created_at->format('d/m H:i') }}</flux:table.cell>
-                            </flux:table.row>
-                        @endforeach
-                    </flux:table.rows>
-                </flux:table>
+                <div class="overflow-x-auto w-full scrollbar-none">
+                    <flux:table>
+                        <flux:table.columns>
+                            <flux:table.column>Título</flux:table.column>
+                            <flux:table.column>Usuário</flux:table.column>
+                            <flux:table.column>Data</flux:table.column>
+                        </flux:table.columns>
+                        <flux:table.rows>
+                            @foreach ($stats['recent_exams'] ?? [] as $exam)
+                                <flux:table.row>
+                                    <flux:table.cell class="font-medium truncate max-w-xs" tooltip="{{ $exam->title }}">
+                                        {{ Str::limit($exam->title, 45) }}
+                                    </flux:table.cell>
+                                    <flux:table.cell class="truncate max-w-[150px]">{{ Str::limit($exam->user->name, 25) }}</flux:table.cell>
+                                    <flux:table.cell class="whitespace-nowrap">{{ $exam->created_at->format('d/m H:i') }}</flux:table.cell>
+                                </flux:table.row>
+                            @endforeach
+                        </flux:table.rows>
+                    </flux:table>
+                </div>
             </flux:card>
 
             <flux:card>

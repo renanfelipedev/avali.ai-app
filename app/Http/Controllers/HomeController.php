@@ -2,14 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-
-use App\Models\User;
+use App\Models\AiLog;
 use App\Models\Exam;
 use App\Models\ExamEvaluation;
-use App\Models\AiLog;
-use Illuminate\Support\Facades\Cache;
-use Gemini\Laravel\Facades\Gemini;
+use App\Models\User;
 
 class HomeController extends Controller
 {

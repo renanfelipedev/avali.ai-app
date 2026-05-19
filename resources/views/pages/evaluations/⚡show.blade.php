@@ -18,6 +18,10 @@ new #[Layout('layouts.main')] class extends Component {
     public ?ExamSubmission $viewing_submission = null;
     public $search = '';
 
+    public $isEditingFeedback = false;
+    public $editing_feedback_data = [];
+    public $editing_final_grade = 0;
+
     public function mount(ExamEvaluation $evaluation)
     {
         $this->authorizeOwnership($evaluation);
@@ -130,8 +134,35 @@ new #[Layout('layouts.main')] class extends Component {
     {
         $this->viewing_submission = ExamSubmission::findOrFail($submissionId);
         $this->authorizeOwnership($this->viewing_submission->evaluation);
-        
+
+        $this->isEditingFeedback = false;
+        $this->editing_feedback_data = $this->viewing_submission->feedback_data ?? [];
+        $this->editing_final_grade = $this->viewing_submission->final_grade;
+
         $this->modal('feedback-shared-modal')->show();
+    }
+
+    public function recalculateFinalGrade()
+    {
+        $sum = 0;
+        foreach ($this->editing_feedback_data as $q) {
+            $sum += (float) ($q['grade'] ?? 0);
+        }
+        $this->editing_final_grade = $sum;
+    }
+
+    public function saveManualCorrection()
+    {
+        $this->authorizeOwnership($this->viewing_submission->evaluation);
+
+        $this->viewing_submission->update([
+            'final_grade' => $this->editing_final_grade,
+            'feedback_data' => $this->editing_feedback_data,
+        ]);
+
+        $this->isEditingFeedback = false;
+        session()->flash('status', 'Correção atualizada manualmente com sucesso!');
+        $this->loadSubmissions();
     }
 
     protected function requeueSubmission(ExamSubmission $submission): void
@@ -450,15 +481,32 @@ new #[Layout('layouts.main')] class extends Component {
             @if($viewing_submission)
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-100 dark:border-zinc-800">
                     <div>
-                        <flux:heading size="lg">Relatório de Correção IA</flux:heading>
+                        <flux:heading size="lg">
+                            @if($isEditingFeedback)
+                                ✏️ Ajustar Correção Manualmente
+                            @else
+                                Relatório de Correção IA
+                            @endif
+                        </flux:heading>
                         <flux:subheading class="flex items-center gap-1.5 mt-0.5">
                             Aluno: <span class="font-bold text-zinc-800 dark:text-zinc-200">{{ $viewing_submission->student_name }}</span>
                         </flux:subheading>
                     </div>
                     <div class="flex items-center gap-3">
-                        <flux:badge color="indigo" size="sm" class="font-mono text-sm px-3 py-1 font-bold">Nota Final: {{ $viewing_submission->final_grade }}</flux:badge>
-                        @if ($viewing_submission->status === 'error')
-                            <flux:button wire:click="retrySubmission({{ $viewing_submission->id }})" variant="primary" size="sm" icon="arrow-path">Tentar Novamente</flux:button>
+                        @if($isEditingFeedback)
+                            <div class="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2 py-1 shadow-sm">
+                                <span class="text-xs font-bold text-zinc-500 uppercase tracking-wider">Nota Final:</span>
+                                <flux:input type="number" step="0.01" min="0" max="10" wire:model="editing_final_grade" class="w-20 text-right font-mono font-bold" />
+                                <flux:button wire:click="recalculateFinalGrade" size="xs" variant="ghost" icon="calculator" tooltip="Somar notas das questões" />
+                            </div>
+                            <flux:button wire:click="saveManualCorrection" variant="primary" color="green" size="sm" icon="check">Salvar</flux:button>
+                            <flux:button wire:click="$set('isEditingFeedback', false)" size="sm" variant="ghost">Cancelar</flux:button>
+                        @else
+                            <flux:badge color="indigo" size="sm" class="font-mono text-sm px-3 py-1 font-bold">Nota Final: {{ $viewing_submission->final_grade }}</flux:badge>
+                            <flux:button wire:click="$set('isEditingFeedback', true)" size="sm" variant="ghost" icon="pencil-square" tooltip="Editar Notas/Feedback" />
+                            @if ($viewing_submission->status === 'error')
+                                <flux:button wire:click="retrySubmission({{ $viewing_submission->id }})" variant="primary" size="sm" icon="arrow-path">Tentar Novamente</flux:button>
+                            @endif
                         @endif
                     </div>
                 </div>
@@ -475,33 +523,64 @@ new #[Layout('layouts.main')] class extends Component {
                     </flux:card>
                 @endif
 
-                @if ($viewing_submission->feedback_data && is_array($viewing_submission->feedback_data))
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-                        @foreach ($viewing_submission->feedback_data as $q)
-                            <flux:card class="p-5 border border-zinc-100 dark:border-zinc-800 flex flex-col justify-between space-y-4 shadow-sm hover:shadow transition-shadow">
-                                <div class="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
-                                    <div class="font-bold text-zinc-800 dark:text-zinc-200">Questão {{ $q['question_number'] ?? 'N/A' }}</div>
-                                    <flux:badge color="indigo" size="sm" class="font-mono px-2 py-0.5">Nota: {{ $q['grade'] ?? 0 }}</flux:badge>
-                                </div>
-                                <div class="flex-1 space-y-3.5">
-                                    @if(!empty($q['student_answer']))
+                @if($isEditingFeedback)
+                    @if ($editing_feedback_data && is_array($editing_feedback_data))
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
+                            @foreach ($editing_feedback_data as $index => $q)
+                                <flux:card class="p-5 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between space-y-4 shadow-sm hover:shadow transition-shadow">
+                                    <div class="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
+                                        <div class="font-bold text-zinc-800 dark:text-zinc-200">Questão {{ $q['question_number'] ?? ($index + 1) }}</div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs text-zinc-500">Nota:</span>
+                                            <flux:input type="number" step="0.01" min="0" wire:model="editing_feedback_data.{{ $index }}.grade" class="w-16 font-mono text-xs" />
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 space-y-3.5">
+                                        @if(!empty($q['student_answer']))
+                                            <div>
+                                                <div class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Resposta do Aluno:</div>
+                                                <p class="text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900/50 mt-1 italic leading-relaxed">
+                                                    "{{ $q['student_answer'] }}"
+                                                </p>
+                                            </div>
+                                        @endif
                                         <div>
-                                            <div class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Resposta do Aluno:</div>
-                                            <p class="text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900/50 mt-1 italic leading-relaxed">
-                                                "{{ $q['student_answer'] }}"
+                                            <flux:textarea wire:model="editing_feedback_data.{{ $index }}.feedback" label="Feedback da Correção:" rows="2" class="text-xs" />
+                                        </div>
+                                    </div>
+                                </flux:card>
+                            @endforeach
+                        </div>
+                    @endif
+                @else
+                    @if ($viewing_submission->feedback_data && is_array($viewing_submission->feedback_data))
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
+                            @foreach ($viewing_submission->feedback_data as $q)
+                                <flux:card class="p-5 border border-zinc-100 dark:border-zinc-800 flex flex-col justify-between space-y-4 shadow-sm hover:shadow transition-shadow">
+                                    <div class="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
+                                        <div class="font-bold text-zinc-800 dark:text-zinc-200">Questão {{ $q['question_number'] ?? 'N/A' }}</div>
+                                        <flux:badge color="indigo" size="sm" class="font-mono px-2 py-0.5">Nota: {{ $q['grade'] ?? 0 }}</flux:badge>
+                                    </div>
+                                    <div class="flex-1 space-y-3.5">
+                                        @if(!empty($q['student_answer']))
+                                            <div>
+                                                <div class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Resposta do Aluno:</div>
+                                                <p class="text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900/50 mt-1 italic leading-relaxed">
+                                                    "{{ $q['student_answer'] }}"
+                                                </p>
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <div class="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Feedback da Correção IA:</div>
+                                            <p class="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed mt-1 font-medium">
+                                                {{ trim($q['feedback'] ?? 'Sem feedback fornecido.') }}
                                             </p>
                                         </div>
-                                    @endif
-                                    <div>
-                                        <div class="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Feedback da Correção IA:</div>
-                                        <p class="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed mt-1 font-medium">
-                                            {{ trim($q['feedback'] ?? 'Sem feedback fornecido.') }}
-                                        </p>
                                     </div>
-                                </div>
-                            </flux:card>
-                        @endforeach
-                    </div>
+                                </flux:card>
+                            @endforeach
+                        </div>
+                    @endif
                 @endif
             @else
                 <div class="flex flex-col items-center justify-center py-20 space-y-3">

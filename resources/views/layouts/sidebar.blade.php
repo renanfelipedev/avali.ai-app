@@ -58,6 +58,10 @@
             <flux:sidebar.item icon="sparkles" href="{{ route('exams.create') }}">Criar Prova</flux:sidebar.item>
             <flux:sidebar.item icon="check-badge" href="{{ route('evaluations.index') }}">Corretor</flux:sidebar.item>
         </flux:sidebar.group>
+
+        <flux:sidebar.group expandable heading="Módulo de Aulas">
+            <flux:sidebar.item icon="clock" href="{{ route('attendance.index') }}">Chamada Online</flux:sidebar.item>
+        </flux:sidebar.group>
     </flux:sidebar.nav>
 
     <flux:sidebar.spacer />

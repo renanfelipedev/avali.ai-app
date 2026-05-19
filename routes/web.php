@@ -40,6 +40,10 @@ Route::middleware('auth')->group(function () {
     // Módulo de Gerenciamento de Tarefas em Background
     Route::livewire('/tasks', 'pages::tasks.index')->name('tasks.index');
 
+    // Módulo de Chamada Online
+    Route::livewire('/attendance', 'pages::attendance.index')->name('attendance.index');
+    Route::livewire('/attendance/{session:uuid}', 'pages::attendance.show')->name('attendance.show');
+
     // Módulo de Perfil do Usuário
     Route::livewire('/profile', 'pages::profile.index')->name('profile');
 
@@ -48,3 +52,6 @@ Route::middleware('auth')->group(function () {
         ->name('health')
         ->middleware('can:admin');
 });
+
+// Rota Pública do Aluno para registrar presença na Chamada
+Route::livewire('/c/{uuid}', 'pages::attendance.student-signup')->name('attendance.student-signup');

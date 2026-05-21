@@ -27,6 +27,49 @@ new #[Layout('layouts.main')] class extends Component
         session()->flash('error', 'Arquivo não encontrado.');
     }
 
+    public function downloadPdf()
+    {
+        if (!Storage::disk('public')->exists($this->exam->file_path)) {
+            session()->flash('error', 'Arquivo da prova não encontrado.');
+            return;
+        }
+
+        $rawContent = Storage::disk('public')->get($this->exam->file_path);
+        $isJson = $this->exam->mime_type === 'application/json';
+        $jsonData = null;
+        $htmlContent = '';
+
+        if ($isJson) {
+            $jsonData = json_decode($rawContent, true);
+        } else {
+            $htmlContent = Str::markdown($rawContent);
+        }
+
+        $html = view('pdf.exam', [
+            'exam' => $this->exam,
+            'jsonData' => $jsonData,
+            'htmlContent' => $htmlContent,
+            'isJson' => $isJson
+        ])->render();
+
+        $options = new \Dompdf\Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+        
+        $dompdf = new \Dompdf\Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        $pdfContent = $dompdf->output();
+
+        $safeTitle = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $this->exam->title);
+        
+        return response()->streamDownload(
+            fn () => print($pdfContent),
+            "prova_{$safeTitle}_" . $this->exam->created_at->format('Y-m-d') . ".pdf"
+        );
+    }
+
     public function with(): array
     {
         $content = '';
@@ -62,7 +105,12 @@ new #[Layout('layouts.main')] class extends Component
         </div>
         <div class="flex space-x-3">
             <flux:button href="{{ route('exams.index') }}" variant="ghost" icon="arrow-left">Voltar</flux:button>
-            <flux:button wire:click="downloadMarkdown" variant="primary" icon="arrow-down-tray">Baixar Arquivo</flux:button>
+            <flux:button wire:click="downloadMarkdown" variant="filled" color="zinc" icon="arrow-down-tray">
+                {{ $exam->mime_type === 'application/json' ? 'Baixar JSON' : 'Baixar Markdown' }}
+            </flux:button>
+            <flux:button wire:click="downloadPdf" variant="primary" icon="document">
+                Baixar PDF
+            </flux:button>
         </div>
     </div>
 

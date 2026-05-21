@@ -4,6 +4,12 @@
     <div class="flex min-h-screen">
         <div class="flex-1 flex justify-center items-center">
             <div class="w-80 max-w-80 space-y-6">
+                <div class="flex justify-center mb-6">
+                    <a href="/" class="flex items-center gap-2">
+                        <img src="{{ asset('images/logo.png') }}" alt="avali.ai logo" class="h-10 w-auto">
+                        <span class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">avali.ai</span>
+                    </a>
+                </div>
                 <flux:heading class="text-center" size="xl">Escolher Nova Senha</flux:heading>
                 <flux:subheading class="text-center">Preencha os campos abaixo para definir sua nova senha de acesso.</flux:subheading>
 

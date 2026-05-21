@@ -6,20 +6,83 @@ use Livewire\Component;
 
 new class extends Component
 {
-    public function getActiveTasks()
+    public $activeGenerationIds = [];
+    public $activeGradingIds = [];
+
+    public function mount()
     {
-        $generations = ExamGenerationRequest::where('user_id', auth()->id())
+        $this->activeGenerationIds = ExamGenerationRequest::where('user_id', auth()->id())
+            ->whereIn('status', ['pending', 'processing'])
+            ->pluck('id')
+            ->toArray();
+
+        $this->activeGradingIds = ExamEvaluation::where('user_id', auth()->id())
+            ->where('status', 'processing')
+            ->pluck('id')
+            ->toArray();
+    }
+
+    public function checkTasks()
+    {
+        $currentGenerations = ExamGenerationRequest::where('user_id', auth()->id())
             ->whereIn('status', ['pending', 'processing'])
             ->get();
+        $currentGenIds = $currentGenerations->pluck('id')->toArray();
 
-        $grading = ExamEvaluation::where('user_id', auth()->id())
+        $currentGrading = ExamEvaluation::where('user_id', auth()->id())
             ->where('status', 'processing')
             ->get();
+        $currentGradingIds = $currentGrading->pluck('id')->toArray();
+
+        // Check finished generations
+        $finishedGenIds = array_diff($this->activeGenerationIds, $currentGenIds);
+        foreach ($finishedGenIds as $id) {
+            $req = ExamGenerationRequest::find($id);
+            if ($req) {
+                if ($req->status === 'completed') {
+                    Flux::toast(
+                        text: "A prova '" . ($req->title ?: 'Sem título') . "' foi gerada com sucesso!",
+                        heading: 'Geração Concluída',
+                        variant: 'success'
+                    );
+                } elseif ($req->status === 'error') {
+                    Flux::toast(
+                        text: "Erro ao gerar prova: " . ($req->error_message ?: 'Desconhecido'),
+                        heading: 'Geração Falhou',
+                        variant: 'danger'
+                    );
+                }
+            }
+        }
+
+        // Check finished grading
+        $finishedGradingIds = array_diff($this->activeGradingIds, $currentGradingIds);
+        foreach ($finishedGradingIds as $id) {
+            $eval = ExamEvaluation::find($id);
+            if ($eval) {
+                if ($eval->status === 'completed') {
+                    Flux::toast(
+                        text: "A correção da prova '" . $eval->title . "' foi concluída!",
+                        heading: 'Correção Finalizada',
+                        variant: 'success'
+                    );
+                } elseif ($eval->status === 'error') {
+                    Flux::toast(
+                        text: "Erro na correção da prova '" . $eval->title . "'",
+                        heading: 'Correção Falhou',
+                        variant: 'danger'
+                    );
+                }
+            }
+        }
+
+        $this->activeGenerationIds = $currentGenIds;
+        $this->activeGradingIds = $currentGradingIds;
 
         return [
-            'generations' => $generations,
-            'grading' => $grading,
-            'total' => $generations->count() + $grading->count()
+            'generations' => $currentGenerations,
+            'grading' => $currentGrading,
+            'total' => $currentGenerations->count() + $currentGrading->count()
         ];
     }
 
@@ -46,7 +109,7 @@ new class extends Component
 
 <div wire:poll.5s class="flex items-center gap-4">
     @php 
-        $active = $this->getActiveTasks(); 
+        $active = $this->checkTasks(); 
         $finished = $this->getFinishedRecently();
     @endphp
 

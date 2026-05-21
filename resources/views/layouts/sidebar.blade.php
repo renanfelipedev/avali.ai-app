@@ -1,9 +1,8 @@
 <flux:sidebar sticky collapsible="mobile"
     class="bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700 overflow-x-hidden">
     <flux:sidebar.header>
-        <flux:sidebar.brand href="{{ route('home') }}" name="avali.ai"
+        <flux:sidebar.brand href="{{ route('home') }}" name="avali.ai" logo="/images/logo.png"
             class="font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
-            <flux:icon.sparkles class="size-6" />
         </flux:sidebar.brand>
 
         <flux:sidebar.collapse class="lg:hidden" />

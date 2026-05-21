@@ -94,9 +94,22 @@
 </head>
 <body>
 
-    <div class="header">
-        <h1 class="logo">Avali.AI</h1>
-        <p class="subtitle">Lista Oficial de Presença - Chamada Online</p>
+    <div class="header" style="margin-bottom: 25px; border-bottom: 2px solid #6366f1; padding-bottom: 15px;">
+        <table style="width: 100%; border: none; border-collapse: collapse;">
+            <tr style="background: none; border: none;">
+                <td style="border: none; padding: 0; vertical-align: middle;">
+                    @if(file_exists(public_path('images/logo.png')))
+                        <img src="{{ public_path('images/logo.png') }}" style="height: 30px; width: auto;" alt="Logo">
+                    @else
+                        <span style="font-size: 20px; font-weight: bold; color: #4f46e5;">Avali.AI</span>
+                    @endif
+                </td>
+                <td style="border: none; padding: 0; text-align: right; vertical-align: middle;">
+                    <p style="font-size: 14px; font-weight: bold; color: #4b5563; margin: 0;">Lista Oficial de Presença</p>
+                    <p style="font-size: 11px; color: #9ca3af; margin: 2px 0 0 0;">Chamada Online</p>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <table class="info-grid">

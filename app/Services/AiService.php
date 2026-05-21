@@ -32,9 +32,9 @@ class AiService
             } catch (Throwable $e) {
                 $lastException = $e;
 
-                // Se o erro for de cota ou limite, tenta o próximo modelo
-                if ($this->isQuotaError($e)) {
-                    Log::warning("Cota excedida para o modelo {$model}. Tentando o próximo modelo da lista de fallback.");
+                // Se o erro for de cota, limite ou sobrecarga/alta demanda, tenta o próximo modelo
+                if ($this->isQuotaOrOverloadError($e)) {
+                    Log::warning("Cota excedida ou alta demanda para o modelo {$model} (Erro: {$e->getMessage()}). Tentando o próximo modelo da lista de fallback.");
 
                     continue;
                 }
@@ -48,15 +48,22 @@ class AiService
     }
 
     /**
-     * Identifica se a exceção é relacionada a limites de cota.
+     * Identifica se a exceção é relacionada a limites de cota ou sobrecarga/alta demanda temporária.
      */
-    private function isQuotaError(Throwable $e): bool
+    private function isQuotaOrOverloadError(Throwable $e): bool
     {
         $message = strtolower($e->getMessage());
 
         return str_contains($message, 'quota') ||
                str_contains($message, 'limit') ||
                str_contains($message, 'too many requests') ||
-               str_contains($message, '429');
+               str_contains($message, '429') ||
+               str_contains($message, 'demand') ||
+               str_contains($message, 'spike') ||
+               str_contains($message, 'overload') ||
+               str_contains($message, 'unavailable') ||
+               str_contains($message, '503') ||
+               str_contains($message, 'resource exhausted') ||
+               str_contains($message, 'try again later');
     }
 }

@@ -7,6 +7,12 @@
             <form action="{{ route('cadastro') }}" method="POST">
                 @csrf
 
+                <div class="flex justify-center mb-6">
+                    <a href="/" class="flex items-center gap-2">
+                        <img src="{{ asset('images/logo.png') }}" alt="avali.ai logo" class="h-10 w-auto">
+                        <span class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">avali.ai</span>
+                    </a>
+                </div>
                 <flux:heading class="text-center mb-4" size="xl">Cadastre-se</flux:heading>
 
                 <x-flash />

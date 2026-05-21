@@ -7,7 +7,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
                 <div class="flex items-center gap-2">
-                    <flux:icon.sparkles class="size-8 text-indigo-600 dark:text-indigo-400" />
+                    <img src="{{ asset('images/logo.png') }}" alt="avali.ai logo" class="size-8 object-contain">
                     <span class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">avali.ai</span>
                 </div>
                 <div class="flex items-center gap-4">
@@ -114,7 +114,7 @@
     <footer class="py-12 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
             <div class="flex items-center gap-2">
-                <flux:icon.sparkles class="size-6 text-indigo-600 dark:text-indigo-400" />
+                <img src="{{ asset('images/logo.png') }}" alt="avali.ai logo" class="size-6 object-contain">
                 <span class="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">avali.ai</span>
             </div>
             <p class="text-zinc-500 text-sm">

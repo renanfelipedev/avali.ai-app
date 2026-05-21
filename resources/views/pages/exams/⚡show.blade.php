@@ -27,48 +27,7 @@ new #[Layout('layouts.main')] class extends Component
         session()->flash('error', 'Arquivo não encontrado.');
     }
 
-    public function downloadPdf()
-    {
-        if (!Storage::disk('public')->exists($this->exam->file_path)) {
-            session()->flash('error', 'Arquivo da prova não encontrado.');
-            return;
-        }
 
-        $rawContent = Storage::disk('public')->get($this->exam->file_path);
-        $isJson = $this->exam->mime_type === 'application/json';
-        $jsonData = null;
-        $htmlContent = '';
-
-        if ($isJson) {
-            $jsonData = json_decode($rawContent, true);
-        } else {
-            $htmlContent = Str::markdown($rawContent);
-        }
-
-        $html = view('pdf.exam', [
-            'exam' => $this->exam,
-            'jsonData' => $jsonData,
-            'htmlContent' => $htmlContent,
-            'isJson' => $isJson
-        ])->render();
-
-        $options = new \Dompdf\Options();
-        $options->set('isHtml5ParserEnabled', true);
-        $options->set('isRemoteEnabled', true);
-        
-        $dompdf = new \Dompdf\Dompdf($options);
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-        $pdfContent = $dompdf->output();
-
-        $safeTitle = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $this->exam->title);
-        
-        return response()->streamDownload(
-            fn () => print($pdfContent),
-            "prova_{$safeTitle}_" . $this->exam->created_at->format('Y-m-d') . ".pdf"
-        );
-    }
 
     public function with(): array
     {
@@ -91,7 +50,8 @@ new #[Layout('layouts.main')] class extends Component
         return [
             'htmlContent' => $content,
             'jsonData' => $jsonData,
-            'isJson' => $isJson
+            'isJson' => $isJson,
+            'printProfiles' => auth()->user()->printProfiles()->latest()->get()
         ];
     }
 };
@@ -108,9 +68,25 @@ new #[Layout('layouts.main')] class extends Component
             <flux:button wire:click="downloadMarkdown" variant="filled" color="zinc" icon="arrow-down-tray" class="w-full sm:w-auto">
                 {{ $exam->mime_type === 'application/json' ? 'Baixar JSON' : 'Baixar Markdown' }}
             </flux:button>
-            <flux:button wire:click="downloadPdf" variant="primary" icon="document" class="w-full sm:w-auto">
-                Baixar PDF
-            </flux:button>
+            <flux:dropdown>
+                <flux:button variant="primary" icon="document" class="w-full sm:w-auto">
+                    Baixar PDF
+                </flux:button>
+                <flux:menu>
+                    <flux:menu.item href="{{ route('exams.pdf', $exam->id) }}" icon="document-text">
+                        Padrão (Avali.AI)
+                    </flux:menu.item>
+                    @foreach($printProfiles as $profile)
+                        <flux:menu.item href="{{ route('exams.pdf', ['exam' => $exam->id, 'profile' => $profile->id]) }}" icon="building-office-2">
+                            {{ $profile->institution_name }}
+                        </flux:menu.item>
+                    @endforeach
+                    <flux:menu.separator />
+                    <flux:menu.item href="{{ route('exams.settings') }}" icon="cog-6-tooth">
+                        Gerenciar Perfis
+                    </flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
         </div>
     </div>
 

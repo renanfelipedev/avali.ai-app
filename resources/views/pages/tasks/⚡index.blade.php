@@ -58,6 +58,36 @@ new #[Layout('layouts.main')] class extends Component
             ->get();
     }
 
+    public function getFailedGenerationTasks()
+    {
+        return ExamGenerationRequest::where('user_id', auth()->id())
+            ->where('status', 'error')
+            ->latest()
+            ->take(5)
+            ->get();
+    }
+
+    public function retryGenerationTask($id)
+    {
+        $task = ExamGenerationRequest::where('user_id', auth()->id())->findOrFail($id);
+        
+        $task->update([
+            'status' => 'pending',
+            'error_message' => null
+        ]);
+        
+        \App\Jobs\GenerateExamJob::dispatch($task);
+        
+        session()->flash('status', 'Solicitação de prova reenviada para a fila com sucesso!');
+    }
+
+    public function deleteGenerationTask($id)
+    {
+        $task = ExamGenerationRequest::where('user_id', auth()->id())->findOrFail($id);
+        $task->delete();
+        session()->flash('status', 'Registro de falha removido.');
+    }
+
     public function getGradingTasks()
     {
         return ExamEvaluation::where('user_id', auth()->id())
@@ -121,6 +151,45 @@ new #[Layout('layouts.main')] class extends Component
                             </div>
                         </div>
                     @endforeach
+                </div>
+            @endif
+
+            @php $failedTasks = $this->getFailedGenerationTasks(); @endphp
+            
+            @if($failedTasks->isNotEmpty())
+                <div class="mt-8">
+                    <flux:heading size="md" class="mb-3 text-rose-600 dark:text-rose-400">Falhas Recentes</flux:heading>
+                    <flux:table>
+                        <flux:table.columns>
+                            <flux:table.column>Erro Reportado</flux:table.column>
+                            <flux:table.column>Tópicos da Prova</flux:table.column>
+                            <flux:table.column align="right">Ações</flux:table.column>
+                        </flux:table.columns>
+                        <flux:table.rows>
+                            @foreach($failedTasks as $task)
+                                <flux:table.row>
+                                    <flux:table.cell>
+                                        <div class="flex items-center gap-3">
+                                            <flux:icon.exclamation-circle class="size-5 text-rose-500" />
+                                            <div>
+                                                <div class="text-sm font-medium text-rose-600 dark:text-rose-400">{{ Str::limit($task->error_message, 60) }}</div>
+                                                <div class="text-xs text-zinc-500">{{ $task->updated_at->diffForHumans() }}</div>
+                                            </div>
+                                        </div>
+                                    </flux:table.cell>
+                                    <flux:table.cell>
+                                        <span class="text-sm text-zinc-600 dark:text-zinc-400">{{ Str::limit(implode(', ', (array)$task->topics), 40) }}</span>
+                                    </flux:table.cell>
+                                    <flux:table.cell>
+                                        <div class="flex items-center justify-end gap-2">
+                                            <flux:button wire:click="retryGenerationTask({{ $task->id }})" variant="primary" size="sm" icon="arrow-path">Reprocessar</flux:button>
+                                            <flux:button wire:click="deleteGenerationTask({{ $task->id }})" wire:confirm="Excluir este registro?" variant="danger" size="sm" icon="trash">Excluir</flux:button>
+                                        </div>
+                                    </flux:table.cell>
+                                </flux:table.row>
+                            @endforeach
+                        </flux:table.rows>
+                    </flux:table>
                 </div>
             @endif
         </flux:card>

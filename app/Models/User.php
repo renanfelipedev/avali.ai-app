@@ -98,4 +98,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(AttendanceSession::class);
     }
+
+    public function printProfiles(): HasMany
+    {
+        return $this->hasMany(PrintProfile::class);
+    }
 }

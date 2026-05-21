@@ -161,15 +161,24 @@
         <table style="width: 100%; border: none; border-collapse: collapse;">
             <tr style="background: none; border: none;">
                 <td style="border: none; padding: 0; vertical-align: middle;">
-                    @if(file_exists(public_path('images/logo.png')))
-                        <img src="{{ public_path('images/logo.png') }}" style="height: 30px; width: auto;" alt="Logo">
-                    @else
-                        <span style="font-size: 20px; font-weight: bold; color: #4f46e5;">Avali.AI</span>
+                    @if(isset($printProfile) && $printProfile && $printProfile->logo_path && file_exists(storage_path('app/public/' . $printProfile->logo_path)))
+                        <img src="{{ storage_path('app/public/' . $printProfile->logo_path) }}" style="max-height: 45px; width: auto;" alt="Logo da Instituição">
+                    @elseif(!isset($printProfile) || !$printProfile)
+                        @if(file_exists(public_path('images/logo.png')))
+                            <img src="{{ public_path('images/logo.png') }}" style="height: 30px; width: auto;" alt="Logo">
+                        @else
+                            <span style="font-size: 20px; font-weight: bold; color: #4f46e5;">Avali.AI</span>
+                        @endif
                     @endif
                 </td>
                 <td style="border: none; padding: 0; text-align: right; vertical-align: middle;">
-                    <p style="font-size: 12px; font-weight: bold; color: #4b5563; margin: 0;">Avali.AI</p>
-                    <p style="font-size: 10px; color: #9ca3af; margin: 2px 0 0 0;">Plataforma de Avaliação Inteligente</p>
+                    @if(isset($printProfile) && $printProfile)
+                        <p style="font-size: 14px; font-weight: bold; color: #111827; margin: 0; text-transform: uppercase;">{{ $printProfile->institution_name }}</p>
+                        <p style="font-size: 10px; color: #6b7280; margin: 2px 0 0 0;">Documento de Avaliação Oficial</p>
+                    @else
+                        <p style="font-size: 12px; font-weight: bold; color: #4b5563; margin: 0;">Avali.AI</p>
+                        <p style="font-size: 10px; color: #9ca3af; margin: 2px 0 0 0;">Plataforma de Avaliação Inteligente</p>
+                    @endif
                 </td>
             </tr>
         </table>
@@ -208,7 +217,7 @@
                     <div class="options-list">
                         @foreach($q['options'] ?? [] as $key => $option)
                             <div class="option-item">
-                                <div class="option-marker">( &nbsp; ) {{ strtoupper($key) }})</div>
+                                <div class="option-marker">{{ strtoupper($key) }})</div>
                                 <div class="option-text">{{ $option }}</div>
                             </div>
                         @endforeach

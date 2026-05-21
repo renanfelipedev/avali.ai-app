@@ -64,6 +64,7 @@
             </flux:sidebar.item>
             <flux:sidebar.item icon="clipboard-document-check" href="{{ route('evaluations.create') }}">Criar Correção
             </flux:sidebar.item>
+            <flux:sidebar.item icon="cog-6-tooth" href="{{ route('exams.settings') }}">Perfis de Impressão</flux:sidebar.item>
         </flux:sidebar.group>
 
         <flux:sidebar.group expandable heading="Módulo de Aulas">

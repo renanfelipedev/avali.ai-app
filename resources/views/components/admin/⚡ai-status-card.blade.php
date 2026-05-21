@@ -52,7 +52,7 @@ new class extends Component
 
     private function performCheck()
     {
-        $models = config('gemini.fallback_models', ['gemini-1.5-flash']);
+        $models = config('gemini.fallback_models');
         
         foreach ($models as $model) {
             try {

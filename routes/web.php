@@ -39,8 +39,10 @@ Route::middleware('auth')->group(function () {
 
     // Módulo de Geração de Provas (IA)
     Route::livewire('/exams', 'pages::exams.index')->name('exams.index');
+    Route::livewire('/exams/settings', 'pages::exams.settings')->name('exams.settings');
     Route::livewire('/exams/create', 'pages::exams.create')->name('exams.create');
     Route::livewire('/exams/{exam}', 'pages::exams.show')->name('exams.show');
+    Route::get('/exams/{exam}/pdf', [\App\Http\Controllers\ExamPdfController::class, 'download'])->name('exams.pdf');
 
     // Logs da IA
     Route::livewire('/ai-logs', 'pages::ai-logs.index')->name('ai-logs.index');

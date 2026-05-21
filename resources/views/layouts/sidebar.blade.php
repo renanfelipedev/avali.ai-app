@@ -55,7 +55,10 @@
             <flux:sidebar.item icon="document-duplicate" href="{{ route('exams.index') }}">Listar Provas
             </flux:sidebar.item>
             <flux:sidebar.item icon="sparkles" href="{{ route('exams.create') }}">Criar Prova</flux:sidebar.item>
-            <flux:sidebar.item icon="check-badge" href="{{ route('evaluations.index') }}">Corretor</flux:sidebar.item>
+            <flux:sidebar.item icon="pencil" href="{{ route('evaluations.index') }}">Ver Correções
+            </flux:sidebar.item>
+            <flux:sidebar.item icon="clipboard-document-check" href="{{ route('evaluations.create') }}">Criar Correção
+            </flux:sidebar.item>
         </flux:sidebar.group>
 
         <flux:sidebar.group expandable heading="Módulo de Aulas">

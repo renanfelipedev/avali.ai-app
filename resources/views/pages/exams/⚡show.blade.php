@@ -98,17 +98,17 @@ new #[Layout('layouts.main')] class extends Component
 ?>
 
 <div>
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
             <flux:heading size="xl">{{ $exam->title }}</flux:heading>
             <flux:subheading>Gerada em {{ $exam->created_at->format('d/m/Y H:i') }}</flux:subheading>
         </div>
-        <div class="flex space-x-3">
-            <flux:button href="{{ route('exams.index') }}" variant="ghost" icon="arrow-left">Voltar</flux:button>
-            <flux:button wire:click="downloadMarkdown" variant="filled" color="zinc" icon="arrow-down-tray">
+        <div class="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
+            <flux:button href="{{ route('exams.index') }}" variant="ghost" icon="arrow-left" class="w-full sm:w-auto">Voltar</flux:button>
+            <flux:button wire:click="downloadMarkdown" variant="filled" color="zinc" icon="arrow-down-tray" class="w-full sm:w-auto">
                 {{ $exam->mime_type === 'application/json' ? 'Baixar JSON' : 'Baixar Markdown' }}
             </flux:button>
-            <flux:button wire:click="downloadPdf" variant="primary" icon="document">
+            <flux:button wire:click="downloadPdf" variant="primary" icon="document" class="w-full sm:w-auto">
                 Baixar PDF
             </flux:button>
         </div>

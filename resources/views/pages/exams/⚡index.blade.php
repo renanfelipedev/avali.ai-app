@@ -30,9 +30,9 @@ new #[Layout('layouts.main')] class extends Component
 ?>
 
 <div>
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <flux:heading size="xl">Provas Geradas pela IA</flux:heading>
-        <flux:button href="{{ route('exams.create') }}" variant="primary" icon="plus">Solicitar Nova Prova</flux:button>
+        <flux:button href="{{ route('exams.create') }}" variant="primary" icon="plus" class="w-full sm:w-auto">Solicitar Nova Prova</flux:button>
     </div>
 
     <flux:card class="overflow-hidden">

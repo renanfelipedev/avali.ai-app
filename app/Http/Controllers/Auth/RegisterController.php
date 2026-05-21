@@ -27,10 +27,8 @@ class RegisterController extends Controller
 
         $user = User::create($data);
 
-        Auth::login($user);
+        session()->flash('status', 'Seu cadastro foi solicitado, aguarde autorização do administrador');
 
-        session()->flash('status', 'Cadastro realizado com sucesso! Bem-vindo(a).');
-
-        return to_route('home');
+        return to_route('login');
     }
 }

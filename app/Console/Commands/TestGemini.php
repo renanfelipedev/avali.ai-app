@@ -13,66 +13,68 @@ class TestGemini extends Command
      *
      * @var string
      */
-    protected $signature = 'ia:test';
+    protected $signature = 'ia:test-models';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Testa a conexão com o Gemini gerando duas questões em formato JSON';
+    protected $description = 'Testa a conexão com o Gemini verificando qual dos fallback_models retorna a resposta';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $this->info('Iniciando teste de comunicação com o Gemini...');
-
-        $modelName = config('gemini.default_model');
-        $this->line("Modelo configurado: <comment>{$modelName}</comment>");
-
-        $prompt = <<<'PROMPT'
-Gere duas questões simples de conhecimentos gerais.
-A resposta deve ser ESTRITAMENTE um JSON válido no seguinte formato:
-[
-  {
-    "pergunta": "Qual a capital do Brasil?",
-    "opcoes": ["A) Rio", "B) SP", "C) Brasília", "D) Salvador"],
-    "resposta_correta": "C) Brasília"
-  }
-]
-Não inclua marcadores de markdown (como ```json) na resposta, apenas o array JSON puro.
-PROMPT;
-
-        $this->line("Enviando prompt...\n");
+        $this->info('Buscando todos os modelos disponíveis na API do Gemini...');
 
         try {
-            $response = Gemini::generativeModel($modelName)->generateContent($prompt);
-
-            $text = trim($response->text());
-
-            // Clean markdown blocks if AI still outputted them
-            $text = str_replace(['```json', '```'], '', $text);
-            $text = trim($text);
-
-            $this->info("Resposta recebida com sucesso!\n");
-            $this->line($text);
-
-            // Validar o JSON
-            $json = json_decode($text, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $this->info("\n✅ JSON válido!");
-                $this->table(['Pergunta', 'Resposta Correta'], collect($json)->map(function ($item) {
-                    return [$item['pergunta'] ?? 'N/A', $item['resposta_correta'] ?? 'N/A'];
-                })->toArray());
-            } else {
-                $this->error("\n❌ Erro: O retorno não é um JSON válido. (".json_last_error_msg().')');
-            }
+            $response = Gemini::models()->list();
+            $availableModels = $response->models;
         } catch (Throwable $e) {
-            $this->error("\n❌ Falha ao comunicar com a IA:");
-            $this->error($e->getMessage());
-            $this->error('Arquivo: '.$e->getFile().' (Linha '.$e->getLine().')');
+            $this->error("Falha ao buscar a lista de modelos: " . $e->getMessage());
+            return;
+        }
+
+        $models = [];
+        foreach ($availableModels as $model) {
+            // Filtra apenas modelos que suportam geração de texto
+            if (in_array('generateContent', $model->supportedGenerationMethods)) {
+                $models[] = str_replace('models/', '', $model->name);
+            }
+        }
+
+        if (empty($models)) {
+            $this->error('Nenhum modelo que suporta geração de conteúdo foi encontrado na API.');
+            return;
+        }
+
+        $this->info(count($models) . " modelos encontrados que suportam generateContent.");
+
+        $prompt = 'Responda apenas com a palavra "Sucesso" para confirmar o funcionamento.';
+        $this->line("\nEnviando questionamento simples: \"{$prompt}\"\n");
+
+        $sucesso = false;
+
+        foreach ($models as $modelName) {
+            $this->line("Testando modelo: <comment>{$modelName}</comment>...");
+            
+            try {
+                $response = Gemini::generativeModel($modelName)->generateContent($prompt);
+                $text = trim($response->text());
+
+                $this->info("✅ Resposta recebida do modelo {$modelName} com sucesso!");
+                $this->line("Resposta: {$text}\n");
+                $sucesso = true;
+                sleep(1);
+            } catch (Throwable $e) {
+                $this->error("❌ Falha no modelo {$modelName}.");
+            }
+        }
+
+        if (!$sucesso) {
+            $this->error('Todos os modelos testados falharam ao tentar retornar uma resposta.');
         }
     }
 }

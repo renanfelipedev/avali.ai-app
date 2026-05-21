@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Administrador',
             'email' => 'admin@email.com',
             'password' => 'admin@123',
+            'is_active' => true
         ]);
 
         $admin->roles()->attach(1);

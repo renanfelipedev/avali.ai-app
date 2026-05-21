@@ -51,6 +51,11 @@
             </flux:sidebar.item>
         @endcan
 
+        <flux:sidebar.group expandable heading="Módulo de Turmas">
+            <flux:sidebar.item icon="academic-cap" href="{{ route('classrooms.index') }}">Turmas</flux:sidebar.item>
+            <flux:sidebar.item icon="users" href="{{ route('students.index') }}">Alunos</flux:sidebar.item>
+        </flux:sidebar.group>
+
         <flux:sidebar.group expandable heading="Módulo de Provas">
             <flux:sidebar.item icon="document-duplicate" href="{{ route('exams.index') }}">Listar Provas
             </flux:sidebar.item>

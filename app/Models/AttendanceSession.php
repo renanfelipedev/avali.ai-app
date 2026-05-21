@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['uuid', 'user_id', 'class_name', 'is_active'])]
+#[Fillable(['uuid', 'user_id', 'classroom_id', 'class_name', 'is_active'])]
 class AttendanceSession extends Model
 {
     /**
@@ -32,5 +32,10 @@ class AttendanceSession extends Model
     public function records(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function classroom(): BelongsTo
+    {
+        return $this->belongsTo(Classroom::class);
     }
 }

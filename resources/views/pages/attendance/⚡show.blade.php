@@ -22,6 +22,24 @@ new #[Layout('layouts.main')] class extends Component
         return $this->session->records()->latest()->get();
     }
 
+    public function getAbsenteesProperty()
+    {
+        if (!$this->session->classroom_id) {
+            return collect();
+        }
+
+        $presentNames = $this->session->records()->pluck('student_name')->map(fn($name) => strtolower(trim($name)));
+        
+        return $this->session->classroom->students->filter(function ($student) use ($presentNames) {
+            $studentNameLower = strtolower(trim($student->name));
+            // Return true if student is absent (name not in present names)
+            // Also do a partial match to be generous
+            return !$presentNames->contains(function ($presentName) use ($studentNameLower) {
+                return str_contains($studentNameLower, $presentName) || str_contains($presentName, $studentNameLower);
+            });
+        });
+    }
+
     public function refreshRecords()
     {
         // Polling will call this to refresh data
@@ -284,4 +302,27 @@ new #[Layout('layouts.main')] class extends Component
             </flux:table.rows>
         </flux:table>
     </flux:card>
+
+    @if($session->classroom_id)
+        <flux:card class="mt-6 relative overflow-hidden border border-red-200 dark:border-red-900/30 shadow-sm bg-red-50/10 dark:bg-red-950/5">
+            <div class="mb-4">
+                <flux:heading size="lg" class="font-extrabold tracking-tight text-red-600 dark:text-red-400">Estudantes Ausentes ({{ $this->absentees->count() }})</flux:heading>
+                <flux:subheading>Alunos matriculados na turma que ainda não registraram presença.</flux:subheading>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                @forelse($this->absentees as $absentee)
+                    <div class="p-3 bg-white dark:bg-zinc-900 border border-red-100 dark:border-red-900/20 rounded-lg flex items-center gap-2">
+                        <flux:icon.x-circle class="w-5 h-5 text-red-500" />
+                        <span class="font-medium text-sm text-zinc-700 dark:text-zinc-300">{{ $absentee->name }}</span>
+                    </div>
+                @empty
+                    <div class="col-span-full p-4 text-center text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-100 dark:border-green-900/20">
+                        <flux:icon.check-badge class="w-6 h-6 mx-auto mb-2" />
+                        <span class="font-bold">Todos os alunos da turma estão presentes!</span>
+                    </div>
+                @endforelse
+            </div>
+        </flux:card>
+    @endif
 </div>

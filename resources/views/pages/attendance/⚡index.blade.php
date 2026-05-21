@@ -11,11 +11,13 @@ new #[Layout('layouts.main')] class extends Component
     use WithPagination;
 
     public string $class_name = '';
+    public ?int $classroom_id = null;
 
     public function rules(): array
     {
         return [
             'class_name' => 'required|string|min:3|max:100',
+            'classroom_id' => 'nullable|exists:classrooms,id',
         ];
     }
 
@@ -23,6 +25,7 @@ new #[Layout('layouts.main')] class extends Component
     {
         return [
             'class_name' => 'Nome da Turma',
+            'classroom_id' => 'Turma Vinculada',
         ];
     }
 
@@ -34,6 +37,7 @@ new #[Layout('layouts.main')] class extends Component
                 ->withCount('records')
                 ->latest()
                 ->paginate(10),
+            'classrooms' => auth()->user()->classrooms()->latest()->get(),
         ];
     }
 
@@ -44,11 +48,13 @@ new #[Layout('layouts.main')] class extends Component
         $session = AttendanceSession::create([
             'uuid' => (string) Str::uuid(),
             'user_id' => auth()->id(),
+            'classroom_id' => $this->classroom_id,
             'class_name' => $this->class_name,
             'is_active' => true,
         ]);
 
         $this->class_name = '';
+        $this->classroom_id = null;
         session()->flash('status', 'Chamada online iniciada com sucesso!');
 
         return $this->redirect(route('attendance.show', $session->uuid), navigate: true);
@@ -83,6 +89,13 @@ new #[Layout('layouts.main')] class extends Component
                         placeholder="Ex: Engenharia de Software 3º A" 
                         icon="academic-cap" 
                     />
+
+                    <flux:select wire:model="classroom_id" label="Vincular a uma Turma (Opcional)">
+                        <flux:select.option value="">Sem vínculo</flux:select.option>
+                        @foreach($classrooms as $classroom)
+                            <flux:select.option value="{{ $classroom->id }}">{{ $classroom->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
 
                     <flux:button type="submit" variant="primary" class="w-full" icon="qr-code">
                         Gerar QR Code e Iniciar

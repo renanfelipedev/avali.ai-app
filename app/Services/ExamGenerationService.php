@@ -110,6 +110,7 @@ PROMPT;
             // Create the Exam record
             $exam = Exam::create([
                 'user_id' => $request->user_id,
+                'classroom_id' => $request->classroom_id,
                 'title' => $request->title ?: ($examData['title'] ?? ('Prova Gerada: '.Str::limit($topics, 50))),
                 'description' => 'Prova de '.$request->questions_count.' questões. Temas: '.$topics,
                 'file_path' => $filePath,

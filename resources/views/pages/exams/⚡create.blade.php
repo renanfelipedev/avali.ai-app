@@ -10,6 +10,7 @@ new #[Layout('layouts.main')] class extends Component {
     use WithFileUploads;
 
     public $title = '';
+    public $classroom_id = null;
     public $objective_count = 5;
     public $discursive_count = 2;
     public $topics = '';
@@ -18,6 +19,7 @@ new #[Layout('layouts.main')] class extends Component {
 
     protected $rules = [
         'title' => 'nullable|string|max:255',
+        'classroom_id' => 'nullable|exists:classrooms,id',
         'objective_count' => 'required|integer|min:0|max:50',
         'discursive_count' => 'required|integer|min:0|max:50',
         'topics' => 'required|string',
@@ -52,6 +54,7 @@ new #[Layout('layouts.main')] class extends Component {
 
         $generationRequest = ExamGenerationRequest::create([
             'user_id' => auth()->id(),
+            'classroom_id' => $this->classroom_id,
             'title' => $this->title ?: null,
             'questions_count' => $this->objective_count + $this->discursive_count,
             'objective_count' => $this->objective_count,
@@ -68,6 +71,12 @@ new #[Layout('layouts.main')] class extends Component {
         session()->flash('status', 'A solicitação de geração de prova foi enviada para processamento em segundo plano.');
 
         return redirect()->route('tasks.index');
+    }
+    public function with(): array
+    {
+        return [
+            'classrooms' => auth()->user()->classrooms()->latest()->get(),
+        ];
     }
 };
 ?>
@@ -96,8 +105,17 @@ new #[Layout('layouts.main')] class extends Component {
             </div>
 
             <flux:card class="space-y-6 shadow-sm border border-zinc-200 dark:border-zinc-800">
-                <flux:input wire:model="title" label="Título da Prova (Opcional)"
-                    placeholder="Ex: Prova de Matemática - 1º Bimestre" />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input wire:model="title" label="Título da Prova (Opcional)"
+                        placeholder="Ex: Prova de Matemática - 1º Bimestre" />
+                    
+                    <flux:select wire:model="classroom_id" label="Vincular a uma Turma (Opcional)">
+                        <flux:select.option value="">Sem vínculo</flux:select.option>
+                        @foreach($classrooms as $classroom)
+                            <flux:select.option value="{{ $classroom->id }}">{{ $classroom->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:input wire:model="objective_count" label="Questões Objetivas" type="number" placeholder="Ex: 5"

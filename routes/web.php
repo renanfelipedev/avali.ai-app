@@ -32,6 +32,11 @@ Route::middleware('auth')->group(function () {
         ->name('users.index')
         ->middleware('can:admin');
 
+    // Módulo de Gestão de Turmas e Alunos
+    Route::livewire('/classrooms', 'pages::classrooms.index')->name('classrooms.index');
+    Route::livewire('/classrooms/{classroom}', 'pages::classrooms.show')->name('classrooms.show');
+    Route::livewire('/students', 'pages::students.index')->name('students.index');
+
     // Módulo de Geração de Provas (IA)
     Route::livewire('/exams', 'pages::exams.index')->name('exams.index');
     Route::livewire('/exams/create', 'pages::exams.create')->name('exams.create');

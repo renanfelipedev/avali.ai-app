@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['uuid', 'user_id', 'classroom_id', 'class_name', 'is_active'])]
+#[Fillable(['uuid', 'user_id', 'classroom_id', 'class_name', 'is_active', 'require_geolocation', 'latitude', 'longitude', 'radius_meters'])]
 class AttendanceSession extends Model
 {
     /**
@@ -17,11 +17,16 @@ class AttendanceSession extends Model
     {
         return [
             'is_active' => 'boolean',
+            'require_geolocation' => 'boolean',
+            'latitude' => 'decimal:8',
+            'longitude' => 'decimal:8',
+            'radius_meters' => 'integer',
         ];
     }
 
     protected $attributes = [
         'is_active' => true,
+        'require_geolocation' => false,
     ];
 
     public function user(): BelongsTo

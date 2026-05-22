@@ -12,12 +12,18 @@ new #[Layout('layouts.main')] class extends Component
 
     public string $class_name = '';
     public ?int $classroom_id = null;
+    public bool $require_geolocation = false;
+    public ?float $latitude = null;
+    public ?float $longitude = null;
 
     public function rules(): array
     {
         return [
             'class_name' => 'required|string|min:3|max:100',
             'classroom_id' => 'nullable|exists:classrooms,id',
+            'require_geolocation' => 'boolean',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
         ];
     }
 
@@ -51,6 +57,10 @@ new #[Layout('layouts.main')] class extends Component
             'classroom_id' => $this->classroom_id,
             'class_name' => $this->class_name,
             'is_active' => true,
+            'require_geolocation' => $this->require_geolocation,
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
+            'radius_meters' => $this->require_geolocation ? 100 : null,
         ]);
 
         $this->class_name = '';
@@ -82,7 +92,36 @@ new #[Layout('layouts.main')] class extends Component
                 <flux:heading size="lg">Iniciar Nova Chamada</flux:heading>
                 <flux:subheading>Informe o nome da turma para criar o QR Code de presença.</flux:subheading>
 
-                <form wire:submit="startSession" class="space-y-4">
+                <form x-data="{
+                    loadingLocation: false,
+                    submitForm() {
+                        if (!this.$wire.require_geolocation) {
+                            this.$wire.startSession();
+                            return;
+                        }
+                        
+                        this.loadingLocation = true;
+                        
+                        if (!navigator.geolocation) {
+                            alert('Geolocalização não é suportada pelo seu navegador.');
+                            this.loadingLocation = false;
+                            return;
+                        }
+
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                                this.$wire.set('latitude', position.coords.latitude);
+                                this.$wire.set('longitude', position.coords.longitude);
+                                this.$wire.startSession();
+                            },
+                            (error) => {
+                                alert('Para utilizar o Geofencing, você precisa PERMITIR que o navegador acesse sua localização (GPS).');
+                                this.loadingLocation = false;
+                            },
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        );
+                    }
+                }" @submit.prevent="submitForm" class="space-y-4">
                     <flux:input 
                         wire:model="class_name" 
                         label="Nome da Turma / Aula" 
@@ -97,8 +136,11 @@ new #[Layout('layouts.main')] class extends Component
                         @endforeach
                     </flux:select>
 
+                    <flux:switch wire:model="require_geolocation" label="Exigir Localização (Geofencing)" description="Garante que os alunos estejam num raio de 100m de você ao assinar." />
+
                     <flux:button type="submit" variant="primary" class="w-full" icon="qr-code">
-                        Gerar QR Code e Iniciar
+                        <span x-show="!loadingLocation">Gerar QR Code e Iniciar</span>
+                        <span x-show="loadingLocation">Obtendo sua localização GPS...</span>
                     </flux:button>
                 </form>
             </flux:card>

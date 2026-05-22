@@ -324,6 +324,9 @@ new #[Layout('layouts.main')] class extends Component
             <flux:table.columns>
                 <flux:table.column>Nome do Estudante</flux:table.column>
                 <flux:table.column>Horário de Check-in</flux:table.column>
+                @if($session->require_geolocation)
+                    <flux:table.column>Localização</flux:table.column>
+                @endif
                 <flux:table.column>Endereço IP</flux:table.column>
                 <flux:table.column>Navegador / Dispositivo</flux:table.column>
                 <flux:table.column>Ações</flux:table.column>
@@ -338,6 +341,17 @@ new #[Layout('layouts.main')] class extends Component
                         <flux:table.cell>
                             {{ $record->created_at->setTimezone('America/Bahia')->format('H:i:s') }}
                         </flux:table.cell>
+                        @if($session->require_geolocation)
+                            <flux:table.cell>
+                                @if($record->is_valid_location === true)
+                                    <flux:badge color="green" size="sm" icon="map-pin" tooltip="Distância aproximada calculada: {{ $record->distance_meters }} metros">Válido (Próximo)</flux:badge>
+                                @elseif($record->is_valid_location === false && $record->distance_meters !== null)
+                                    <flux:badge color="red" size="sm" icon="exclamation-triangle" tooltip="Distância aproximada: {{ $record->distance_meters > 1000 ? round($record->distance_meters / 1000, 1) . ' km' : $record->distance_meters . ' metros' }}">Fora da Área</flux:badge>
+                                @else
+                                    <flux:badge color="yellow" size="sm" icon="no-symbol" tooltip="O aluno recusou a permissão de GPS no celular.">GPS Bloqueado</flux:badge>
+                                @endif
+                            </flux:table.cell>
+                        @endif
                         <flux:table.cell>
                             <span class="font-mono text-xs text-zinc-500">{{ $record->ip_address ?? 'N/D' }}</span>
                         </flux:table.cell>
@@ -350,7 +364,7 @@ new #[Layout('layouts.main')] class extends Component
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="5" class="text-center text-zinc-500 py-12 italic">
+                        <flux:table.cell colspan="{{ $session->require_geolocation ? '6' : '5' }}" class="text-center text-zinc-500 py-12 italic">
                             Aguardando a confirmação de presença dos alunos...
                         </flux:table.cell>
                     </flux:table.row>

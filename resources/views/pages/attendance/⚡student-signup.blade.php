@@ -10,6 +10,10 @@ new class extends Component
     public string $student_name = '';
     public bool $hasRegistered = false;
     public ?string $device_id = null;
+    
+    public ?float $latitude = null;
+    public ?float $longitude = null;
+    public bool $geolocation_denied = false;
 
     public function rendering(\Illuminate\View\View $view)
     {
@@ -79,6 +83,23 @@ new class extends Component
             return;
         }
 
+        $distance = null;
+        $isValidLocation = null;
+
+        if ($this->session->require_geolocation) {
+            if ($this->latitude && $this->longitude && $this->session->latitude && $this->session->longitude) {
+                $distance = $this->calculateDistance(
+                    $this->session->latitude,
+                    $this->session->longitude,
+                    $this->latitude,
+                    $this->longitude
+                );
+                $isValidLocation = $distance <= ($this->session->radius_meters ?? 100);
+            } else {
+                $isValidLocation = false;
+            }
+        }
+
         // Record presence
         AttendanceRecord::create([
             'attendance_session_id' => $this->session->id,
@@ -86,12 +107,30 @@ new class extends Component
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
             'device_id' => $this->device_id,
+            'distance_meters' => $distance,
+            'is_valid_location' => $isValidLocation,
         ]);
 
         $this->hasRegistered = true;
 
         // Set a cookie for 24 hours to remember check-in
         cookie()->queue('presence_' . $this->session->uuid, '1', 60 * 24);
+    }
+
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371000; // in meters
+        
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLon / 2) * sin($dLon / 2);
+             
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        
+        return (int) round($earthRadius * $c);
     }
 };
 ?>
@@ -151,7 +190,42 @@ new class extends Component
             </div>
         @else
             <!-- SIGNUP STATE -->
-            <form wire:submit="register" class="space-y-4">
+            <form x-data="{
+                loadingLocation: false,
+                submitForm() {
+                    if (!{{ $session->require_geolocation ? 'true' : 'false' }}) {
+                        this.$wire.register();
+                        return;
+                    }
+                    
+                    this.loadingLocation = true;
+                    
+                    if (!navigator.geolocation) {
+                        this.$wire.set('geolocation_denied', true);
+                        this.$wire.register();
+                        return;
+                    }
+
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            this.$wire.set('latitude', position.coords.latitude);
+                            this.$wire.set('longitude', position.coords.longitude);
+                            this.$wire.register();
+                        },
+                        (error) => {
+                            this.$wire.set('geolocation_denied', true);
+                            this.$wire.register();
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                }
+            }" @submit.prevent="submitForm" class="space-y-4">
+                @if($session->require_geolocation)
+                    <div class="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-800 dark:text-indigo-300 text-xs rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+                        <strong>Aviso de Privacidade:</strong> O professor exigiu validação presencial (Geofencing). Ao continuar, a sua distância até o professor será calculada. <strong>Sua localização exata NÃO será guardada pelo sistema.</strong>
+                    </div>
+                @endif
+                
                 <flux:input 
                     wire:model="student_name" 
                     label="Nome Completo" 
@@ -162,7 +236,8 @@ new class extends Component
                 />
 
                 <flux:button type="submit" variant="primary" class="w-full">
-                    Confirmar Presença
+                    <span x-show="!loadingLocation">Confirmar Presença</span>
+                    <span x-show="loadingLocation">Validando localização...</span>
                 </flux:button>
             </form>
         @endif

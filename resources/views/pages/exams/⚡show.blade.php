@@ -114,7 +114,7 @@ new #[Layout('layouts.main')] class extends Component
                                 <div class="grid grid-cols-1 gap-2 pl-8">
                                     @foreach($q['options'] ?? [] as $key => $option)
                                         <div class="flex items-start gap-3 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
-                                            <span class="font-bold text-zinc-500 uppercase">{{ $key }})</span>
+                                            <span class="font-bold text-zinc-500 uppercase">{{ chr(65 + $loop->index) }})</span>
                                             <span class="text-zinc-700 dark:text-zinc-300">{{ $option }}</span>
                                         </div>
                                     @endforeach

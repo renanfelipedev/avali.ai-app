@@ -217,7 +217,7 @@
                     <div class="options-list">
                         @foreach($q['options'] ?? [] as $key => $option)
                             <div class="option-item">
-                                <div class="option-marker">{{ strtoupper($key) }})</div>
+                                <div class="option-marker">{{ chr(65 + $loop->index) }})</div>
                                 <div class="option-text">{{ $option }}</div>
                             </div>
                         @endforeach

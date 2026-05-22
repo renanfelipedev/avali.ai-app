@@ -63,8 +63,17 @@ class Exam extends Model
                 
                 if (($q['type'] ?? '') === 'objective') {
                     $q['answer'] = $q['correct_answer'] ?? '';
-                    if (isset($q['options']) && !is_array($q['options'])) {
-                        $q['options'] = [$q['options']];
+                    if (isset($q['options'])) {
+                        if (!is_array($q['options'])) {
+                            $q['options'] = [$q['options']];
+                        }
+                        
+                        // Remove prefixos como "A) ", "(B) ", "c. ", "D - " das opções para não duplicar com as Views
+                        $cleanOptions = [];
+                        foreach ($q['options'] as $opt) {
+                            $cleanOptions[] = preg_replace('/^\s*(?:\([a-e1-5]\)|[a-e1-5]\s*[\.\-\:\)])\s*(?:[\-\:]\s*)?/i', '', $opt);
+                        }
+                        $q['options'] = $cleanOptions;
                     }
                     $objective[] = $q;
                 } else {

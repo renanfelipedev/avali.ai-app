@@ -75,7 +75,7 @@ new #[Layout('layouts.main')] class extends Component
             return !$presentNames->contains(function ($presentName) use ($studentNameLower) {
                 return str_contains($studentNameLower, $presentName) || str_contains($presentName, $studentNameLower);
             });
-        });
+        })->sortBy(fn($student) => \Illuminate\Support\Str::slug($student->name));
     }
 
     public function refreshRecords()
@@ -330,7 +330,7 @@ new #[Layout('layouts.main')] class extends Component
             </flux:table.columns>
 
             <flux:table.rows>
-                @forelse ($session->records->sortBy('student_name') as $record)
+                @forelse ($session->records->sortBy(fn($record) => \Illuminate\Support\Str::slug($record->student_name)) as $record)
                     <flux:table.row class="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors">
                         <flux:table.cell>
                             <span class="font-bold text-zinc-900 dark:text-zinc-50">{{ $record->student_name }}</span>

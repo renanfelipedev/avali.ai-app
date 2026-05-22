@@ -26,32 +26,13 @@ class ExamGenerationService
         $request->update(['status' => 'processing']);
 
         try {
-            // Load Prompt Reference
-            $promptReferencePath = base_path('.docs/prompts/system_exam_generator.md');
-            $promptBase = file_exists($promptReferencePath) ? file_get_contents($promptReferencePath) : 'Atue como um Especialista em Educação e Elaboração de Provas.';
-
-            $topics = is_array($request->topics) ? implode(', ', $request->topics) : $request->topics;
-
-            $additionalCriteriaSection = '';
-            if (! empty($request->additional_criteria)) {
-                $additionalCriteriaSection = "\n- Critérios Adicionais / Instruções Especiais: {$request->additional_criteria}";
-            }
-
-            $titleSection = '';
-            if (! empty($request->title)) {
-                $titleSection = "\n- Título Sugerido/Obrigatório para a Prova: {$request->title}";
-            }
-
-            $prompt = <<<PROMPT
-$promptBase
-
-## Parâmetros da Geração:
-- Questões Objetivas: {$request->objective_count}
-- Questões Discursivas: {$request->discursive_count}
-- Temas: {$topics}{$titleSection}{$additionalCriteriaSection}
-
-Sua resposta final deve ser exclusivamente a prova formulada em JSON puro.
-PROMPT;
+            $prompt = view('prompts.generation.exam', [
+                'objective_count' => $request->objective_count,
+                'discursive_count' => $request->discursive_count,
+                'topics' => is_array($request->topics) ? implode(', ', $request->topics) : $request->topics,
+                'title' => $request->title,
+                'additional_criteria' => $request->additional_criteria,
+            ])->render();
 
             // Prepare Gemini parts
             $parts = [
@@ -79,7 +60,7 @@ PROMPT;
             $generatedText = trim($response->text());
 
             // Extract JSON from potential Markdown code blocks
-            if (preg_match('/```json\s*(.*?)\s*```/s', $generatedText, $matches)) {
+            if (preg_match('/```(?:json)?\s*(.*?)\s*```/s', $generatedText, $matches)) {
                 $generatedText = $matches[1];
             }
 

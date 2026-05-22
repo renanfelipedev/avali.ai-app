@@ -89,7 +89,8 @@ class ExamGradingService
             $submission->update([
                 'student_name' => $result['student_name'] ?? ($submission->student_name ?: 'Aluno Desconhecido'),
                 'final_grade' => $result['final_grade'] ?? 0,
-                'feedback_data' => $result['questions'] ?? [],
+                'feedback_data' => $result['questions'] ?? ($result['feedback'] ?? []),
+                'metadata' => collect($result)->except(['student_name', 'final_grade', 'questions', 'full_transcription', 'feedback'])->toArray(),
                 'transcription' => $result['full_transcription'] ?? null,
                 'status' => 'completed',
                 'status_message' => 'Concluído com sucesso',
@@ -280,47 +281,20 @@ class ExamGradingService
 
     private function buildSystemPrompt(ExamEvaluation $evaluation): string
     {
-        $promptReferencePath = base_path('.docs/prompts/system_grading_expert.md');
-        $promptBase = file_exists($promptReferencePath) ? file_get_contents($promptReferencePath) : 'Você é um Especialista em Avaliação Educacional de alta precisão.';
-
         $criteria = $evaluation->grading_criteria ?? 'Avalie de 0 a 10 seguindo os padrões educacionais brasileiros.';
         $hasAnswerKey = ! empty($evaluation->answer_key_file_path);
         $hasExamFile = ! empty($evaluation->exam_file_path);
 
-        return <<<PROMPT
-{$promptBase}
+        $viewName = "prompts.grading.{$evaluation->type}";
+        if (!view()->exists($viewName)) {
+            $viewName = "prompts.grading.exam"; // fallback
+        }
 
-OBJETIVO:
-Analisar a PROVA DO ALUNO e fornecer uma correção detalhada em formato JSON.
-
-REGRAS OBRIGATÓRIAS:
-1. Você DEVE retornar um ARRAY JSON contendo um objeto com as chaves: "student_name", "final_grade", "questions" (array) e "full_transcription".
-2. No array "questions", você DEVE incluir CADA questão identificada na prova com: "question_number", "grade", "student_answer" e "feedback".
-3. O "feedback" deve explicar CLARAMENTE por que o aluno recebeu aquela nota, comparando com o gabarito se disponível.
-4. NUNCA retorne apenas a nota final. O detalhamento por questão é obrigatório para a transparência do sistema.
-
-CONTEXTO ADICIONAL:
-- Critérios do Professor: "{$criteria}"
-- Gabarito Disponível: {$this->boolToStr($hasAnswerKey)}
-- Prova de Referência Disponível: {$this->boolToStr($hasExamFile)}
-
-FORMATO DE RESPOSTA (JSON PURO):
-[
-  {
-    "student_name": "Nome Identificado",
-    "final_grade": 8.5,
-    "full_transcription": "Texto integral da prova...",
-    "questions": [
-      {
-        "question_number": 1,
-        "grade": 2.0,
-        "student_answer": "Resposta do aluno",
-        "feedback": "Explicação detalhada..."
-      }
-    ]
-  }
-]
-PROMPT;
+        return view($viewName, [
+            'criteria' => $criteria,
+            'hasAnswerKey' => $hasAnswerKey,
+            'hasExamFile' => $hasExamFile,
+        ])->render();
     }
 
     private function boolToStr(bool $val): string

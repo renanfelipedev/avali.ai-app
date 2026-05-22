@@ -10,6 +10,7 @@ new #[Layout('layouts.main')] class extends Component {
     use WithFileUploads;
 
     public $title = '';
+    public $type = 'exam';
     public $grading_criteria = '';
     public $answer_key;
     public $exam_file;
@@ -57,6 +58,7 @@ new #[Layout('layouts.main')] class extends Component {
     {
         $rules = [
             'title' => 'required|string|max:255',
+            'type' => 'required|in:exam,article,essay',
             'grading_criteria' => 'nullable|string',
             'answer_key' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,docx,doc,txt|max:10240',
             'exam_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp,docx,doc,txt|max:10240',
@@ -88,6 +90,7 @@ new #[Layout('layouts.main')] class extends Component {
         $evaluation = ExamEvaluation::create([
             'user_id' => auth()->id(),
             'title' => $this->title,
+            'type' => $this->type,
             'grading_criteria' => $this->grading_criteria,
             'answer_key_file_path' => $answerKeyPath,
             'exam_file_path' => $examFilePath,
@@ -141,6 +144,12 @@ new #[Layout('layouts.main')] class extends Component {
             <flux:card class="space-y-6 shadow-sm border border-zinc-200 dark:border-zinc-800">
                 <flux:input wire:model="title" label="Título da Avaliação"
                     placeholder="Ex: Prova de História - 2º Trimestre" required />
+
+                <flux:radio.group wire:model.live="type" label="Tipo de Avaliação" class="mt-4">
+                    <flux:radio value="exam" label="Prova Padrão (Questionário/Teste)" />
+                    <flux:radio value="article" label="Artigo Científico" />
+                    <flux:radio value="essay" label="Redação (Dissertativa-Argumentativa)" />
+                </flux:radio.group>
 
                 <flux:textarea wire:model="grading_criteria" label="Critérios Adicionais (Opcional)"
                     placeholder="Ex: Valorize a interpretação histórica. Se citar a data correta, considere 0.5 pontos extras."
@@ -223,8 +232,13 @@ new #[Layout('layouts.main')] class extends Component {
                 </flux:badge>
                 <div>
                     <flux:heading size="lg" class="font-bold">Documentos de Referência</flux:heading>
-                    <flux:subheading>Forneça gabaritos ou modelos para que o Gemini AI tenha 99% de precisão.
-                    </flux:subheading>
+                    @if ($type === 'exam')
+                        <flux:subheading>Forneça gabaritos ou modelos para que o Gemini AI tenha 99% de precisão.
+                        </flux:subheading>
+                    @else
+                        <flux:subheading>Para Artigos e Redações, gabaritos são <strong>opcionais</strong>. O Gemini usará as melhores práticas da área educacional junto com seus critérios adicionais.
+                        </flux:subheading>
+                    @endif
                 </div>
             </div>
 

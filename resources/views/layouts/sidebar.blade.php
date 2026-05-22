@@ -57,14 +57,15 @@
         </flux:sidebar.group>
 
         <flux:sidebar.group expandable heading="Módulo de Provas">
-            <flux:sidebar.item icon="document-duplicate" href="{{ route('exams.index') }}">Listar Provas
+            <flux:sidebar.item icon="document-duplicate" href="{{ route('exams.index') }}">Ver Provas
             </flux:sidebar.item>
-            <flux:sidebar.item icon="sparkles" href="{{ route('exams.create') }}">Criar Prova</flux:sidebar.item>
+            <flux:sidebar.item icon="sparkles" href="{{ route('exams.create') }}">Nova Prova</flux:sidebar.item>
             <flux:sidebar.item icon="pencil" href="{{ route('evaluations.index') }}">Ver Correções
             </flux:sidebar.item>
-            <flux:sidebar.item icon="clipboard-document-check" href="{{ route('evaluations.create') }}">Criar Correção
+            <flux:sidebar.item icon="clipboard-document-check" href="{{ route('evaluations.create') }}">
+                Nova Correção
             </flux:sidebar.item>
-            <flux:sidebar.item icon="cog-6-tooth" href="{{ route('exams.settings') }}">Perfis de Impressão</flux:sidebar.item>
+            <flux:sidebar.item icon="cog-6-tooth" href="{{ route('exams.settings') }}">Configurações</flux:sidebar.item>
         </flux:sidebar.group>
 
         <flux:sidebar.group expandable heading="Módulo de Aulas">

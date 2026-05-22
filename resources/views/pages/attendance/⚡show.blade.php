@@ -17,9 +17,47 @@ new #[Layout('layouts.main')] class extends Component
         $this->session = $session;
     }
 
+    public $new_classroom_id = null;
+    public $new_class_name = '';
+
     public function getRecordsProperty()
     {
         return $this->session->records()->latest()->get();
+    }
+
+    public function editClassroom()
+    {
+        $this->authorizeOwnership($this->session);
+        $this->new_classroom_id = $this->session->classroom_id;
+        $this->new_class_name = $this->session->class_name;
+        $this->modal('edit-classroom-modal')->show();
+    }
+
+    public function updateClassroom()
+    {
+        $this->authorizeOwnership($this->session);
+
+        $this->validate([
+            'new_class_name' => 'required|string|max:255',
+        ]);
+
+        $updateData = [
+            'class_name' => $this->new_class_name,
+        ];
+
+        if ($this->new_classroom_id) {
+            $classroom = \App\Models\Classroom::find($this->new_classroom_id);
+            if ($classroom && $classroom->user_id === auth()->id()) {
+                $updateData['classroom_id'] = $classroom->id;
+            }
+        } else {
+            $updateData['classroom_id'] = null;
+        }
+
+        $this->session->update($updateData);
+
+        $this->modal('edit-classroom-modal')->close();
+        session()->flash('status', 'Chamada atualizada com sucesso.');
     }
 
     public function getAbsenteesProperty()
@@ -44,6 +82,17 @@ new #[Layout('layouts.main')] class extends Component
     {
         // Polling will call this to refresh data
         $this->session->load('records');
+    }
+
+    public function deleteRecord($recordId)
+    {
+        $this->authorizeOwnership($this->session);
+        
+        $record = $this->session->records()->find($recordId);
+        if ($record) {
+            $record->delete();
+            session()->flash('status', 'Registro de presença excluído com sucesso.');
+        }
     }
 
     public function endSessionAndSendMail()
@@ -105,7 +154,10 @@ new #[Layout('layouts.main')] class extends Component
     <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <div class="flex items-center gap-3">
-                <flux:heading size="xl" class="font-extrabold tracking-tight">Chamada: {{ $session->class_name }}</flux:heading>
+                <flux:heading size="xl" class="font-extrabold tracking-tight flex items-center gap-2">
+                    Chamada: {{ $session->class_name }}
+                    <flux:button wire:click="editClassroom" size="xs" variant="subtle" icon="pencil" tooltip="Editar Chamada" />
+                </flux:heading>
                 @if($session->is_active)
                     <flux:badge color="indigo" size="sm" class="animate-pulse">Ativa (Aberta)</flux:badge>
                 @else
@@ -274,6 +326,7 @@ new #[Layout('layouts.main')] class extends Component
                 <flux:table.column>Horário de Check-in</flux:table.column>
                 <flux:table.column>Endereço IP</flux:table.column>
                 <flux:table.column>Navegador / Dispositivo</flux:table.column>
+                <flux:table.column>Ações</flux:table.column>
             </flux:table.columns>
 
             <flux:table.rows>
@@ -289,12 +342,15 @@ new #[Layout('layouts.main')] class extends Component
                             <span class="font-mono text-xs text-zinc-500">{{ $record->ip_address ?? 'N/D' }}</span>
                         </flux:table.cell>
                         <flux:table.cell class="max-w-xs truncate" title="{{ $record->user_agent }}">
-                            <span class="text-xs text-zinc-400 font-medium">{{ $record->user_agent }}</span>
+                            <span class="text-xs text-zinc-400 font-medium">{{ \Illuminate\Support\Str::limit($record->user_agent, 40) }}</span>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:button wire:click="deleteRecord({{ $record->id }})" wire:confirm="Tem certeza que deseja excluir o registro de presença de {{ $record->student_name }}?" size="xs" variant="ghost" color="danger" icon="trash" tooltip="Excluir Presença" />
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="4" class="text-center text-zinc-500 py-12 italic">
+                        <flux:table.cell colspan="5" class="text-center text-zinc-500 py-12 italic">
                             Aguardando a confirmação de presença dos alunos...
                         </flux:table.cell>
                     </flux:table.row>
@@ -325,4 +381,27 @@ new #[Layout('layouts.main')] class extends Component
             </div>
         </flux:card>
     @endif
+
+    <!-- Modal de Edição de Turma -->
+    <flux:modal name="edit-classroom-modal" class="md:w-96">
+        <div class="space-y-6">
+            <flux:heading size="lg">Editar Chamada</flux:heading>
+            
+            <flux:input wire:model="new_class_name" label="Nome/Título da Chamada" required />
+
+            <flux:select wire:model="new_classroom_id" label="Vincular a uma Turma (Opcional)">
+                <flux:select.option value="">-- Nenhuma (Chamada Avulsa) --</flux:select.option>
+                @foreach (auth()->user()->classrooms as $classroom)
+                    <flux:select.option value="{{ $classroom->id }}">{{ $classroom->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancelar</flux:button>
+                </flux:modal.close>
+                <flux:button wire:click="updateClassroom" variant="primary">Salvar Alterações</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

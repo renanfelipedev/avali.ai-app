@@ -15,18 +15,22 @@ class ExamPdfController extends Controller
             abort(403);
         }
 
-        if (!Storage::disk('public')->exists($exam->file_path)) {
-            abort(404, 'Arquivo da prova não encontrado.');
-        }
-
-        $rawContent = Storage::disk('public')->get($exam->file_path);
-        $isJson = $exam->mime_type === 'application/json';
+        $isJson = false;
         $jsonData = null;
         $htmlContent = '';
 
-        if ($isJson) {
-            $jsonData = json_decode($rawContent, true);
+        if (!empty($exam->content_json) || $exam->mime_type === 'application/json') {
+            $isJson = true;
+            $jsonData = $exam->parsed_json_data;
+            
+            if (!$jsonData) {
+                abort(404, 'O conteúdo estruturado desta prova não pôde ser carregado.');
+            }
         } else {
+            if (empty($exam->file_path) || !Storage::disk('public')->exists($exam->file_path)) {
+                abort(404, 'Arquivo da prova não encontrado.');
+            }
+            $rawContent = Storage::disk('public')->get($exam->file_path);
             $htmlContent = Str::markdown($rawContent);
         }
 

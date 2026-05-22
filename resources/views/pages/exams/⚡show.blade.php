@@ -18,13 +18,20 @@ new #[Layout('layouts.main')] class extends Component
         $this->exam = $exam;
     }
 
-    public function downloadMarkdown()
+    public function downloadSource()
     {
-        if (Storage::disk('public')->exists($this->exam->file_path)) {
+        if (!empty($this->exam->content_json)) {
+            return response()->streamDownload(
+                fn () => print(json_encode($this->exam->content_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)),
+                Str::slug($this->exam->title) . '.json'
+            );
+        }
+
+        if (!empty($this->exam->file_path) && Storage::disk('public')->exists($this->exam->file_path)) {
             return Storage::disk('public')->download($this->exam->file_path, $this->exam->original_name);
         }
 
-        session()->flash('error', 'Arquivo não encontrado.');
+        session()->flash('error', 'Conteúdo da prova não encontrado.');
     }
 
 
@@ -35,16 +42,14 @@ new #[Layout('layouts.main')] class extends Component
         $jsonData = null;
         $isJson = $this->exam->mime_type === 'application/json';
 
-        if (Storage::disk('public')->exists($this->exam->file_path)) {
+        if (!empty($this->exam->content_json) || $this->exam->mime_type === 'application/json') {
+            $isJson = true;
+            $jsonData = $this->exam->parsed_json_data;
+        } elseif (!empty($this->exam->file_path) && Storage::disk('public')->exists($this->exam->file_path)) {
             $rawContent = Storage::disk('public')->get($this->exam->file_path);
-            
-            if ($isJson) {
-                $jsonData = json_decode($rawContent, true);
-            } else {
-                $content = Str::markdown($rawContent);
-            }
+            $content = Str::markdown($rawContent);
         } else {
-            $content = '<p class="text-red-500">O arquivo desta prova não foi encontrado no servidor.</p>';
+            $content = '<p class="text-red-500">O conteúdo desta prova não foi encontrado.</p>';
         }
 
         return [
@@ -65,8 +70,8 @@ new #[Layout('layouts.main')] class extends Component
         </div>
         <div class="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
             <flux:button href="{{ route('exams.index') }}" variant="ghost" icon="arrow-left" class="w-full sm:w-auto">Voltar</flux:button>
-            <flux:button wire:click="downloadMarkdown" variant="filled" color="zinc" icon="arrow-down-tray" class="w-full sm:w-auto">
-                {{ $exam->mime_type === 'application/json' ? 'Baixar JSON' : 'Baixar Markdown' }}
+            <flux:button wire:click="downloadSource" variant="filled" color="zinc" icon="arrow-down-tray" class="w-full sm:w-auto">
+                {{ (!empty($exam->content_json) || $exam->mime_type === 'application/json') ? 'Baixar JSON' : 'Baixar Markdown' }}
             </flux:button>
             <flux:dropdown>
                 <flux:button variant="primary" icon="document" class="w-full sm:w-auto">

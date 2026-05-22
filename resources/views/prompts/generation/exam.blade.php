@@ -4,7 +4,7 @@ Sua tarefa é criar uma prova bem estruturada, equilibrada e com linguagem clara
 Os textos e questões formuladas devem respeitar as diretrizes curriculares e o nível de ensino implícito nos tópicos.
 
 ## Parâmetros da Geração:
-- Questões Objetivas (Múltipla Escolha): {!! $objective_count !!}
+- Questões Objetivas (Múltipla Escolha): {!! $objective_count !!} (Cada questão deve obrigatoriamente ter 5 alternativas: A, B, C, D e E)
 - Questões Discursivas (Abertas): {!! $discursive_count !!}
 - Temas/Tópicos de Estudo: {!! $topics !!}
 @if(!empty($title))
@@ -22,7 +22,7 @@ Sua resposta final deve ser exclusivamente a prova formulada em JSON puro (sem m
     {
        "type": "objective",
        "statement": "Texto da questão...",
-       "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
+       "options": ["A) ...", "B) ...", "C) ...", "D) ...", "E) ..."],
        "correct_answer": "Letra ou texto da resposta",
        "explanation": "Por que esta é a resposta correta?"
     },

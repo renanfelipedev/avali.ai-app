@@ -15,7 +15,7 @@ class AiService
      *
      * @throws Throwable
      */
-    public function generateContent(array $parts, ?string $preferredModel = null)
+    public function generateContent(array $parts, ?string $preferredModel = null, ?\Gemini\Data\GenerationConfig $generationConfig = null)
     {
         $models = config('gemini.fallback_models', []);
 
@@ -28,7 +28,13 @@ class AiService
 
         foreach ($models as $model) {
             try {
-                return Gemini::generativeModel($model)->generateContent(...$parts);
+                $generativeModel = Gemini::generativeModel($model);
+                
+                if ($generationConfig) {
+                    $generativeModel = $generativeModel->withGenerationConfig($generationConfig);
+                }
+
+                return $generativeModel->generateContent(...$parts);
             } catch (Throwable $e) {
                 $lastException = $e;
 

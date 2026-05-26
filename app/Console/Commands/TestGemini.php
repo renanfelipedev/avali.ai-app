@@ -69,7 +69,7 @@ class TestGemini extends Command
                 $sucesso = true;
                 sleep(1);
             } catch (Throwable $e) {
-                $this->error("❌ Falha no modelo {$modelName}.");
+                $this->error("❌ Falha no modelo {$modelName}: " . $e->getMessage());
             }
         }
 

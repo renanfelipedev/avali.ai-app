@@ -43,6 +43,7 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/exams/create', 'pages::exams.create')->name('exams.create');
     Route::livewire('/exams/{exam}', 'pages::exams.show')->name('exams.show');
     Route::get('/exams/{exam}/pdf', [\App\Http\Controllers\ExamPdfController::class, 'download'])->name('exams.pdf');
+    Route::get('/exams/{exam}/word', [\App\Http\Controllers\ExamWordController::class, 'download'])->name('exams.word');
 
     // Logs da IA
     Route::livewire('/ai-logs', 'pages::ai-logs.index')->name('ai-logs.index');

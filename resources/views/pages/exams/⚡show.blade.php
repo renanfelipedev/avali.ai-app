@@ -92,6 +92,21 @@ new #[Layout('layouts.main')] class extends Component
                     </flux:menu.item>
                 </flux:menu>
             </flux:dropdown>
+
+            @if($printProfiles->whereNotNull('template_path')->count() > 0)
+                <flux:dropdown>
+                    <flux:button variant="ghost" color="indigo" icon="document-text" class="w-full sm:w-auto">
+                        Word (Modelos)
+                    </flux:button>
+                    <flux:menu>
+                        @foreach($printProfiles->whereNotNull('template_path') as $profile)
+                            <flux:menu.item href="{{ route('exams.word', ['exam' => $exam->id, 'profile' => $profile->id]) }}" icon="document">
+                                {{ $profile->institution_name }}
+                            </flux:menu.item>
+                        @endforeach
+                    </flux:menu>
+                </flux:dropdown>
+            @endif
         </div>
     </div>
 

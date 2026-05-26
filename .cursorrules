@@ -1,7 +1,8 @@
 # Avali.ai Coding Standards
 
 ## Core Principles
-- **DRY (Don't Repeat Yourself)**: Avoid code duplication. Extract logic to services, traits, or helper functions.
+- **Clean Code**: Emphasize readability, descriptive naming, and single-responsibility functions. Code must explain itself.
+- **DRY (Don't Repeat Yourself)**: Avoid code duplication. Extract logic to services, traits, helper functions, or Blade partials.
 - **KISS (Keep It Simple, Stupid)**: Write simple, readable, and maintainable code. Avoid over-engineering.
 - **PSR Standards**: Follow PSR-1, PSR-4, and PSR-12 strictly.
 - **Laravel Patterns**: Use standard Laravel patterns (Service Layer, Form Requests, DTOs where appropriate, Skinny Controllers).

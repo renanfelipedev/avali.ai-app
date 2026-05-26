@@ -231,9 +231,9 @@ new #[Layout('layouts.main')] class extends Component {
             $progress = $total > 0 ? ($done / $total) * 100 : 0;
         @endphp
 
-        <flux:card class="mb-6 space-y-4 border-indigo-200 bg-indigo-50/50 dark:border-indigo-900/40 dark:bg-indigo-950/20 shadow-inner">
+        <flux:card class="mb-6 space-y-4 shadow-inner">
             <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3 text-indigo-600 dark:text-indigo-400">
+                <div class="flex items-center gap-3">
                     <flux:icon.arrow-path class="animate-spin h-5 w-5" />
                     <div>
                         <div class="font-bold">Corrigindo provas com Inteligência Artificial...</div>
@@ -241,7 +241,7 @@ new #[Layout('layouts.main')] class extends Component {
                     </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-sm font-bold text-indigo-700 dark:text-indigo-300">{{ $done }} / {{ $total }}</div>
+                    <div class="text-sm font-bold">{{ $done }} / {{ $total }}</div>
                     <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Concluídos</div>
                 </div>
             </div>
@@ -261,99 +261,101 @@ new #[Layout('layouts.main')] class extends Component {
     @endif
 
     <!-- PREMIUM METRIC CARDS -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-        <!-- Metric 1: Total Alunos -->
-        <flux:card class="relative overflow-hidden border border-zinc-200 dark:border-zinc-800 p-6 flex items-center gap-4 bg-white dark:bg-zinc-900 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div class="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 shadow-sm">
-                <flux:icon.users class="w-6 h-6" />
-            </div>
-            <div>
-                <div class="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">{{ $evaluation->submissions->count() }}</div>
-                <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total de Alunos</div>
-            </div>
-        </flux:card>
+    @if ($evaluation->type === 'exam')
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+            <!-- Metric 1: Total Alunos -->
+            <flux:card class="p-6 flex items-center gap-4 bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200 dark:border-zinc-800">
+                <div class="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                    <flux:icon.users class="w-6 h-6" />
+                </div>
+                <div>
+                    <div class="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">{{ $evaluation->submissions->count() }}</div>
+                    <div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total de Alunos</div>
+                </div>
+            </flux:card>
 
-        <!-- Metric 2: Média Geral -->
-        @php
-            $completedSubmissions = $evaluation->submissions->where('status', 'completed');
-            $avgGrade = $completedSubmissions->avg('final_grade') ?? 0;
-            $avgColor = $avgGrade >= 7.0 ? 'text-emerald-600 dark:text-emerald-400' : ($avgGrade >= 5.0 ? 'text-amber-500 dark:text-amber-400' : 'text-rose-500 dark:text-rose-400');
-            $avgBg = $avgGrade >= 7.0 ? 'bg-emerald-50 dark:bg-emerald-950/40' : ($avgGrade >= 5.0 ? 'bg-amber-50 dark:bg-amber-950/40' : 'bg-rose-50 dark:bg-rose-950/40');
-            $avgIconColor = $avgGrade >= 7.0 ? 'text-emerald-600 dark:text-emerald-400' : ($avgGrade >= 5.0 ? 'text-amber-500 dark:text-amber-400' : 'text-rose-500 dark:text-rose-400');
-        @endphp
-        <flux:card class="relative overflow-hidden border border-zinc-200 dark:border-zinc-800 p-6 flex items-center gap-4 bg-white dark:bg-zinc-900 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div class="p-4 rounded-2xl {{ $avgBg }} {{ $avgIconColor }} shadow-sm">
-                <flux:icon.academic-cap class="w-6 h-6" />
-            </div>
-            <div>
-                <div class="text-2xl font-black {{ $avgColor }} tracking-tight">{{ number_format($avgGrade, 1, ',', '.') }}</div>
-                <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Média Geral</div>
-            </div>
-        </flux:card>
+            <!-- Metric 2: Média Geral -->
+            @php
+                $completedSubmissions = $evaluation->submissions->where('status', 'completed');
+                $avgGrade = $completedSubmissions->avg('final_grade') ?? 0;
+                $avgColor = $avgGrade >= 7.0 ? 'text-zinc-900 dark:text-zinc-50' : 'text-zinc-900 dark:text-zinc-50';
+            @endphp
+            <flux:card class="p-6 flex items-center gap-4 bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200 dark:border-zinc-800">
+                <div class="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                    <flux:icon.academic-cap class="w-6 h-6" />
+                </div>
+                <div>
+                    <div class="text-2xl font-black {{ $avgColor }} tracking-tight">{{ number_format($avgGrade, 1, ',', '.') }}</div>
+                    <div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Média Geral</div>
+                </div>
+            </flux:card>
 
-        <!-- Metric 3: Taxa de Sucesso -->
-        @php
-            $totalSubmissions = $evaluation->submissions->count();
-            $successSubmissions = $completedSubmissions->count();
-            $successRate = $totalSubmissions > 0 ? round(($successSubmissions / $totalSubmissions) * 100) : 0;
-        @endphp
-        <flux:card class="relative overflow-hidden border border-zinc-200 dark:border-zinc-800 p-6 flex items-center gap-4 bg-white dark:bg-zinc-900 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div class="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 shadow-sm">
-                <flux:icon.check-circle class="w-6 h-6" />
-            </div>
-            <div>
-                <div class="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">{{ $successRate }}%</div>
-                <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Taxa de Sucesso</div>
-            </div>
-        </flux:card>
-    </div>
+            <!-- Metric 3: Taxa de Sucesso -->
+            @php
+                $totalSubmissions = $evaluation->submissions->count();
+                $successSubmissions = $completedSubmissions->count();
+                $successRate = $totalSubmissions > 0 ? round(($successSubmissions / $totalSubmissions) * 100) : 0;
+            @endphp
+            <flux:card class="p-6 flex items-center gap-4 bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200 dark:border-zinc-800">
+                <div class="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                    <flux:icon.check-circle class="w-6 h-6" />
+                </div>
+                <div>
+                    <div class="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">{{ $successRate }}%</div>
+                    <div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Taxa de Sucesso</div>
+                </div>
+            </flux:card>
+        </div>
+    @endif
 
     <!-- REFERENCIAS & CRITERIOS -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <!-- Gabarito Card -->
-        <flux:card class="p-5 flex items-center justify-between border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div class="flex items-center gap-3">
-                <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
-                    <flux:icon.check-badge class="w-6 h-6" />
+        @if ($evaluation->type === 'exam')
+            <!-- Gabarito Card -->
+            <flux:card class="p-5 flex items-center justify-between border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm transition-all duration-300 hover:shadow-md">
+                <div class="flex items-center gap-3">
+                    <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                        <flux:icon.check-badge class="w-6 h-6" />
+                    </div>
+                    <div>
+                        <flux:heading size="sm">Gabarito Oficial</flux:heading>
+                        <flux:subheading class="text-xs">Respostas esperadas</flux:subheading>
+                    </div>
                 </div>
                 <div>
-                    <flux:heading size="sm">Gabarito Oficial</flux:heading>
-                    <flux:subheading class="text-xs">Respostas esperadas</flux:subheading>
+                    @if ($evaluation->answer_key_file_path)
+                        <flux:button href="{{ Storage::url($evaluation->answer_key_file_path) }}" target="_blank" size="xs" variant="filled" color="zinc" icon="eye">Ver</flux:button>
+                    @else
+                        <flux:badge color="zinc" size="sm" class="italic">Não enviado</flux:badge>
+                    @endif
                 </div>
-            </div>
-            <div>
-                @if ($evaluation->answer_key_file_path)
-                    <flux:button href="{{ Storage::url($evaluation->answer_key_file_path) }}" target="_blank" size="xs" variant="filled" color="zinc" icon="eye">Ver</flux:button>
-                @else
-                    <flux:badge color="zinc" size="sm" class="italic">Não enviado</flux:badge>
-                @endif
-            </div>
-        </flux:card>
+            </flux:card>
 
-        <!-- Prova Original Card -->
-        <flux:card class="p-5 flex items-center justify-between border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm transition-all duration-300 hover:shadow-md">
-            <div class="flex items-center gap-3">
-                <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
-                    <flux:icon.document-text class="w-6 h-6" />
+            <!-- Prova Original Card -->
+            <flux:card class="p-5 flex items-center justify-between border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm transition-all duration-300 hover:shadow-md">
+                <div class="flex items-center gap-3">
+                    <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                        <flux:icon.document-text class="w-6 h-6" />
+                    </div>
+                    <div>
+                        <flux:heading size="sm">Prova Original</flux:heading>
+                        <flux:subheading class="text-xs">Prova em branco</flux:subheading>
+                    </div>
                 </div>
                 <div>
-                    <flux:heading size="sm">Prova Original</flux:heading>
-                    <flux:subheading class="text-xs">Prova em branco</flux:subheading>
+                    @if ($evaluation->exam_file_path)
+                        <flux:button href="{{ Storage::url($evaluation->exam_file_path) }}" target="_blank" size="xs" variant="filled" color="zinc" icon="eye">Ver</flux:button>
+                    @else
+                        <flux:badge color="zinc" size="sm" class="italic">Não enviado</flux:badge>
+                    @endif
                 </div>
-            </div>
-            <div>
-                @if ($evaluation->exam_file_path)
-                    <flux:button href="{{ Storage::url($evaluation->exam_file_path) }}" target="_blank" size="xs" variant="filled" color="zinc" icon="eye">Ver</flux:button>
-                @else
-                    <flux:badge color="zinc" size="sm" class="italic">Não enviado</flux:badge>
-                @endif
-            </div>
-        </flux:card>
+            </flux:card>
+        @endif
 
         <!-- Critérios Card -->
-        <flux:card class="p-5 flex flex-col justify-center border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+        <flux:card class="p-5 flex flex-col justify-center border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm {{ $evaluation->type !== 'exam' ? 'md:col-span-3' : '' }}">
             <flux:heading size="sm" class="mb-1">Critérios do Professor</flux:heading>
-            <p class="text-xs text-zinc-500 italic truncate max-w-xs" title="{{ $evaluation->grading_criteria ?? 'Nenhum critério adicional definido.' }}">
+            <p class="text-xs text-zinc-500 italic truncate" title="{{ $evaluation->grading_criteria ?? 'Nenhum critério adicional definido.' }}">
                 "{{ $evaluation->grading_criteria ?? 'Nenhum critério adicional definido.' }}"
             </p>
         </flux:card>
@@ -394,7 +396,9 @@ new #[Layout('layouts.main')] class extends Component {
                                     </div>
                                 @endif
                                 <div>
-                                    <span class="font-bold text-zinc-900 dark:text-zinc-50 block leading-tight">{{ $submission->student_name ?: 'Aguardando sincronização...' }}</span>
+                                    <span class="font-bold text-zinc-900 dark:text-zinc-50 block leading-tight" title="{{ $submission->student_name }}">
+                                        {{ $submission->student_name ? \Illuminate\Support\Str::limit($submission->student_name, 35) : 'Aguardando sincronização...' }}
+                                    </span>
                                     <span class="text-xs text-zinc-400 font-mono block max-w-xs truncate mt-0.5" title="{{ basename($submission->student_file_path) }}">{{ basename($submission->student_file_path) }}</span>
                                 </div>
                             </div>
@@ -481,32 +485,23 @@ new #[Layout('layouts.main')] class extends Component {
             @if($viewing_submission)
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-100 dark:border-zinc-800">
                     <div>
-                        <flux:heading size="lg">
-                            @if($isEditingFeedback)
-                                ✏️ Ajustar Correção Manualmente
-                            @else
-                                Relatório de Correção IA
-                            @endif
+                        <flux:heading size="lg" class="flex items-center gap-2">
+                            Relatório de Correção IA
+                            <flux:badge color="{{ $viewing_submission->final_grade >= 6 ? 'emerald' : 'rose' }}" size="sm" class="font-mono text-sm font-bold">
+                                Nota Final: {{ $viewing_submission->final_grade }}
+                            </flux:badge>
                         </flux:heading>
-                        <flux:subheading class="flex items-center gap-1.5 mt-0.5">
-                            Aluno: <span class="font-bold text-zinc-800 dark:text-zinc-200">{{ $viewing_submission->student_name }}</span>
+                        <flux:subheading title="{{ $viewing_submission->student_name }}">
+                            {{ \Illuminate\Support\Str::limit($viewing_submission->student_name, 45) }}
                         </flux:subheading>
+                        
                     </div>
+                    
                     <div class="flex items-center gap-3">
-                        @if($isEditingFeedback)
-                            <div class="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2 py-1 shadow-sm">
-                                <span class="text-xs font-bold text-zinc-500 uppercase tracking-wider">Nota Final:</span>
-                                <flux:input type="number" step="0.01" min="0" max="10" wire:model="editing_final_grade" class="w-20 text-right font-mono font-bold" />
-                                <flux:button wire:click="recalculateFinalGrade" size="xs" variant="ghost" icon="calculator" tooltip="Somar notas das questões" />
-                            </div>
-                            <flux:button wire:click="saveManualCorrection" variant="primary" color="green" size="sm" icon="check">Salvar</flux:button>
-                            <flux:button wire:click="$set('isEditingFeedback', false)" size="sm" variant="ghost">Cancelar</flux:button>
-                        @else
-                            <flux:badge color="indigo" size="sm" class="font-mono text-sm px-3 py-1 font-bold">Nota Final: {{ $viewing_submission->final_grade }}</flux:badge>
-                            <flux:button wire:click="$set('isEditingFeedback', true)" size="sm" variant="ghost" icon="pencil-square" tooltip="Editar Notas/Feedback" />
-                            @if ($viewing_submission->status === 'error')
-                                <flux:button wire:click="retrySubmission({{ $viewing_submission->id }})" variant="primary" size="sm" icon="arrow-path">Tentar Novamente</flux:button>
-                            @endif
+                        @if ($viewing_submission->status === 'error')
+                            <flux:button wire:click="retrySubmission({{ $viewing_submission->id }})" variant="primary" size="sm" icon="arrow-path">
+                                Tentar Novamente
+                            </flux:button>
                         @endif
                     </div>
                 </div>
@@ -523,101 +518,7 @@ new #[Layout('layouts.main')] class extends Component {
                     </flux:card>
                 @endif
 
-                @if($isEditingFeedback)
-                    @if ($editing_feedback_data && is_array($editing_feedback_data))
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-                            @foreach ($editing_feedback_data as $index => $q)
-                                <flux:card class="p-5 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between space-y-4 shadow-sm hover:shadow transition-shadow">
-                                    <div class="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
-                                        <div class="font-bold text-zinc-800 dark:text-zinc-200">Questão {{ $q['question_number'] ?? ($index + 1) }}</div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-xs text-zinc-500">Nota:</span>
-                                            <flux:input type="number" step="0.01" min="0" wire:model="editing_feedback_data.{{ $index }}.grade" class="w-16 font-mono text-xs" />
-                                        </div>
-                                    </div>
-                                    <div class="flex-1 space-y-3.5">
-                                        @if(!empty($q['student_answer']))
-                                            <div>
-                                                <div class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Resposta do Aluno:</div>
-                                                <p class="text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900/50 mt-1 italic leading-relaxed">
-                                                    "{{ $q['student_answer'] }}"
-                                                </p>
-                                            </div>
-                                        @endif
-                                        <div>
-                                            <flux:textarea wire:model="editing_feedback_data.{{ $index }}.feedback" label="Feedback da Correção:" rows="2" class="text-xs" />
-                                        </div>
-                                    </div>
-                                </flux:card>
-                            @endforeach
-                        </div>
-                    @endif
-                @else
-                    @if ($viewing_submission->evaluation->type !== 'exam')
-                        <div class="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
-                            <!-- Parecer Geral (Feedback) -->
-                            @if (!empty($viewing_submission->feedback_data) && is_string($viewing_submission->feedback_data))
-                                <flux:card class="p-5 border-l-4 border-indigo-500 bg-indigo-50/30 dark:bg-indigo-950/20 shadow-sm">
-                                    <div class="flex items-center gap-2 mb-3">
-                                        <flux:icon.chat-bubble-bottom-center-text class="w-5 h-5 text-indigo-600" />
-                                        <div class="font-extrabold text-indigo-900 dark:text-indigo-100">Parecer Geral do Avaliador (IA)</div>
-                                    </div>
-                                    <p class="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed font-medium">
-                                        {{ $viewing_submission->feedback_data }}
-                                    </p>
-                                </flux:card>
-                            @endif
-
-                            <!-- Metadados Estruturais Extraídos -->
-                            @if (!empty($viewing_submission->metadata) && is_array($viewing_submission->metadata))
-                                <div class="grid grid-cols-1 gap-4">
-                                    @foreach ($viewing_submission->metadata as $section_name => $section_content)
-                                        @if (!empty($section_content))
-                                            <flux:card class="p-5 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow transition-shadow">
-                                                <div class="font-bold text-zinc-800 dark:text-zinc-200 mb-2 uppercase tracking-wider text-xs border-b border-zinc-100 dark:border-zinc-800 pb-2">
-                                                    {{ str_replace('_', ' ', $section_name) }}
-                                                </div>
-                                                <p class="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed italic bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-100 dark:border-zinc-900/50 mt-2">
-                                                    "{{ $section_content }}"
-                                                </p>
-                                            </flux:card>
-                                        @endif
-                                    @endforeach
-                                </div>
-                            @endif
-                        </div>
-                    @else
-                        <!-- Layout Prova Padrão (Questões) -->
-                        @if ($viewing_submission->feedback_data && is_array($viewing_submission->feedback_data))
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-                                @foreach ($viewing_submission->feedback_data as $q)
-                                    <flux:card class="p-5 border border-zinc-100 dark:border-zinc-800 flex flex-col justify-between space-y-4 shadow-sm hover:shadow transition-shadow">
-                                        <div class="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-zinc-800/80">
-                                            <div class="font-bold text-zinc-800 dark:text-zinc-200">Questão {{ $q['question_number'] ?? 'N/A' }}</div>
-                                            <flux:badge color="indigo" size="sm" class="font-mono px-2 py-0.5">Nota: {{ $q['grade'] ?? 0 }}</flux:badge>
-                                        </div>
-                                        <div class="flex-1 space-y-3.5">
-                                            @if(!empty($q['student_answer']))
-                                                <div>
-                                                    <div class="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Resposta do Aluno:</div>
-                                                    <p class="text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900/50 mt-1 italic leading-relaxed">
-                                                        "{{ $q['student_answer'] }}"
-                                                    </p>
-                                                </div>
-                                            @endif
-                                            <div>
-                                                <div class="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Feedback da Correção IA:</div>
-                                                <p class="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed mt-1 font-medium">
-                                                    {{ trim($q['feedback'] ?? 'Sem feedback fornecido.') }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </flux:card>
-                                @endforeach
-                            </div>
-                        @endif
-                    @endif
-                @endif
+                @include('pages.evaluations.partials.feedback')
             @else
                 <div class="flex flex-col items-center justify-center py-20 space-y-3">
                     <flux:icon.arrow-path class="w-8 h-8 text-zinc-400 animate-spin" />
@@ -625,13 +526,21 @@ new #[Layout('layouts.main')] class extends Component {
                 </div>
             @endif
         </div>
+
+        @if($viewing_submission)
+            <div class="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
+                <flux:modal.close>
+                    <flux:button variant="filled">Fechar Relatório</flux:button>
+                </flux:modal.close>
+            </div>
+        @endif
     </flux:modal>
 
     <!-- Modal Compartilhado: Visualização da Prova -->
     <flux:modal name="preview-file-modal" class="w-[95vw] h-[95vh] max-w-none">
         <div class="h-full flex flex-col space-y-4">
             <div class="flex justify-between items-center px-2">
-                <flux:heading size="lg" class="font-extrabold">Visualizando Prova: {{ $viewing_student_name }}</flux:heading>
+                <flux:heading size="lg" class="font-extrabold truncate max-w-full" title="Visualizando Prova: {{ $viewing_student_name }}">Visualizando Prova: {{ \Illuminate\Support\Str::limit($viewing_student_name, 40) }}</flux:heading>
                 <div class="flex gap-2">
                     @if($viewing_file_url)
                         <flux:button href="{{ $viewing_file_url }}" download variant="filled" size="sm" icon="arrow-down-tray">Baixar PDF</flux:button>

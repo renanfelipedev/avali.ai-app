@@ -19,6 +19,9 @@ new #[Layout('layouts.main')] class extends Component
     #[Validate('nullable|image|max:2048')]
     public $logoFile;
 
+    #[Validate('nullable|file|mimes:docx|max:5120')]
+    public $templateFile;
+
     public ?PrintProfile $editingProfile = null;
 
     public function with(): array
@@ -30,7 +33,7 @@ new #[Layout('layouts.main')] class extends Component
 
     public function openCreateModal()
     {
-        $this->reset(['institutionName', 'logoFile', 'editingProfile']);
+        $this->reset(['institutionName', 'logoFile', 'templateFile', 'editingProfile']);
         $this->modal('profile-modal')->show();
     }
 
@@ -42,6 +45,7 @@ new #[Layout('layouts.main')] class extends Component
         $this->editingProfile = $profile;
         $this->institutionName = $profile->institution_name;
         $this->logoFile = null;
+        $this->templateFile = null;
         
         $this->modal('profile-modal')->show();
     }
@@ -50,25 +54,35 @@ new #[Layout('layouts.main')] class extends Component
     {
         $this->validate();
 
-        $path = $this->editingProfile ? $this->editingProfile->logo_path : null;
+        $logoPath = $this->editingProfile ? $this->editingProfile->logo_path : null;
+        $templatePath = $this->editingProfile ? $this->editingProfile->template_path : null;
 
         if ($this->logoFile) {
-            if ($path) {
-                Storage::disk('public')->delete($path);
+            if ($logoPath) {
+                Storage::disk('public')->delete($logoPath);
             }
-            $path = $this->logoFile->store('logos', 'public');
+            $logoPath = $this->logoFile->store('logos', 'public');
+        }
+
+        if ($this->templateFile) {
+            if ($templatePath) {
+                Storage::disk('public')->delete($templatePath);
+            }
+            $templatePath = $this->templateFile->store('templates', 'public');
         }
 
         if ($this->editingProfile) {
             $this->editingProfile->update([
                 'institution_name' => $this->institutionName,
-                'logo_path' => $path,
+                'logo_path' => $logoPath,
+                'template_path' => $templatePath,
             ]);
             session()->flash('status', 'Perfil atualizado com sucesso!');
         } else {
             Auth::user()->printProfiles()->create([
                 'institution_name' => $this->institutionName,
-                'logo_path' => $path,
+                'logo_path' => $logoPath,
+                'template_path' => $templatePath,
             ]);
             session()->flash('status', 'Perfil criado com sucesso!');
         }
@@ -83,6 +97,10 @@ new #[Layout('layouts.main')] class extends Component
 
         if ($profile->logo_path) {
             Storage::disk('public')->delete($profile->logo_path);
+        }
+        
+        if ($profile->template_path) {
+            Storage::disk('public')->delete($profile->template_path);
         }
         
         $profile->delete();
@@ -113,6 +131,7 @@ new #[Layout('layouts.main')] class extends Component
             <flux:table.columns>
                 <flux:table.column>Logo</flux:table.column>
                 <flux:table.column>Nome da Instituição</flux:table.column>
+                <flux:table.column>Modelo Word</flux:table.column>
                 <flux:table.column align="right">Ações</flux:table.column>
             </flux:table.columns>
             
@@ -131,6 +150,17 @@ new #[Layout('layouts.main')] class extends Component
                         <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
                             {{ $profile->institution_name }}
                         </flux:table.cell>
+                        <flux:table.cell>
+                            @if($profile->template_path)
+                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                    <flux:icon.check-circle class="size-3.5" /> Enviado
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                                    <flux:icon.x-circle class="size-3.5" /> Padrão
+                                </span>
+                            @endif
+                        </flux:table.cell>
                         <flux:table.cell class="text-right">
                             <flux:button wire:click="editProfile({{ $profile->id }})" size="sm" variant="ghost" icon="pencil-square">Editar</flux:button>
                             <flux:button wire:click="deleteProfile({{ $profile->id }})" wire:confirm="Tem certeza que deseja excluir este perfil?" variant="danger" size="sm" icon="trash">Excluir</flux:button>
@@ -138,7 +168,7 @@ new #[Layout('layouts.main')] class extends Component
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="3" class="text-center py-12 text-zinc-500">
+                        <flux:table.cell colspan="4" class="text-center py-12 text-zinc-500">
                             <flux:icon.printer class="size-12 mx-auto mb-4 text-zinc-400" />
                             <p>Você ainda não configurou nenhum perfil de impressão.</p>
                             <p class="text-xs mt-1">O cabeçalho padrão "Avali.AI" será utilizado nas suas provas.</p>
@@ -167,6 +197,23 @@ new #[Layout('layouts.main')] class extends Component
                     @elseif ($editingProfile && $editingProfile->logo_path)
                         <div class="mt-2 text-xs text-zinc-500">Logo atual:</div>
                         <img src="{{ Storage::url($editingProfile->logo_path) }}" class="mt-1 h-12 w-auto object-contain border border-zinc-200 dark:border-zinc-800 rounded bg-white">
+                    @endif
+                </div>
+
+                <div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                    <flux:heading size="sm" class="mb-2">Modelo de Prova Oficial (Word)</flux:heading>
+                    <p class="text-sm text-zinc-500 mb-4">Faça o upload do documento padrão (.docx) da sua escola. Coloque a palavra-chave <strong>${prova}</strong> no local onde você deseja que o sistema insira automaticamente as questões da prova.</p>
+                    
+                    <flux:input type="file" wire:model="templateFile" label="Arquivo Modelo (.docx)" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                    <div wire:loading wire:target="templateFile" class="text-xs text-indigo-600 mt-1">Enviando arquivo...</div>
+                    @error('templateFile') <span class="text-xs text-red-600 mt-1">{{ $message }}</span> @enderror
+
+                    @if ($templateFile)
+                        <div class="mt-2 text-xs font-medium text-emerald-600">✓ Novo arquivo selecionado para envio.</div>
+                    @elseif ($editingProfile && $editingProfile->template_path)
+                        <div class="mt-2 text-xs font-medium text-indigo-600 flex items-center gap-1">
+                            <flux:icon.check-circle class="size-3.5" /> Modelo Word já cadastrado no sistema.
+                        </div>
                     @endif
                 </div>
             </div>

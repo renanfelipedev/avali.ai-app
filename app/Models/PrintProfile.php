@@ -14,6 +14,7 @@ class PrintProfile extends Model
         'user_id',
         'institution_name',
         'logo_path',
+        'template_path',
     ];
 
     public function user(): BelongsTo

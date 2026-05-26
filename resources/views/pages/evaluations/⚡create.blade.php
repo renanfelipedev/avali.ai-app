@@ -224,99 +224,96 @@ new #[Layout('layouts.main')] class extends Component {
             </flux:card>
         </section>
 
-        <!-- ETAPA 2: DOCUMENTOS DE REFERÊNCIA -->
-        <section class="space-y-4">
-            <div class="flex items-center gap-3 mb-2">
-                <flux:badge color="indigo"
-                    class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">2
-                </flux:badge>
-                <div>
-                    <flux:heading size="lg" class="font-bold">Documentos de Referência</flux:heading>
-                    @if ($type === 'exam')
+        @if ($type === 'exam')
+            <!-- ETAPA 2: DOCUMENTOS DE REFERÊNCIA -->
+            <section class="space-y-4">
+                <div class="flex items-center gap-3 mb-2">
+                    <flux:badge color="indigo"
+                        class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">2
+                    </flux:badge>
+                    <div>
+                        <flux:heading size="lg" class="font-bold">Documentos de Referência</flux:heading>
                         <flux:subheading>Forneça gabaritos ou modelos para que o Gemini AI tenha 99% de precisão.
                         </flux:subheading>
-                    @else
-                        <flux:subheading>Para Artigos e Redações, gabaritos são <strong>opcionais</strong>. O Gemini usará as melhores práticas da área educacional junto com seus critérios adicionais.
-                        </flux:subheading>
-                    @endif
+                    </div>
                 </div>
-            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Documento A: Gabarito -->
-                <flux:card
-                    class="relative overflow-hidden group border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 transition-colors shadow-sm">
-                    <div class="flex items-start gap-4">
-                        <div
-                            class="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30">
-                            <flux:icon.check-badge class="w-6 h-6" />
-                        </div>
-                        <div class="flex-1">
-                            <flux:heading size="md" class="font-bold">Documento A: Gabarito Oficial</flux:heading>
-                            <flux:subheading class="mb-4 text-xs">O arquivo de referência com as respostas corretas.
-                            </flux:subheading>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Documento A: Gabarito -->
+                    <flux:card
+                        class="relative overflow-hidden group border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 transition-colors shadow-sm">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30">
+                                <flux:icon.check-badge class="w-6 h-6" />
+                            </div>
+                            <div class="flex-1">
+                                <flux:heading size="md" class="font-bold">Documento A: Gabarito Oficial</flux:heading>
+                                <flux:subheading class="mb-4 text-xs">O arquivo de referência com as respostas corretas.
+                                </flux:subheading>
 
-                            <flux:input type="file" wire:model="answer_key" accept=".pdf,image/*,.docx,.doc,.txt" />
+                                <flux:input type="file" wire:model="answer_key" accept=".pdf,image/*,.docx,.doc,.txt" />
 
-                            @if ($answer_key)
-                                <div
-                                    class="mt-3.5 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between shadow-sm animate-fade-in">
-                                    <div class="flex items-center gap-2 truncate">
-                                        <flux:icon.check-circle class="w-4 h-4 text-emerald-600" />
-                                        <span
-                                            class="truncate font-bold">{{ $answer_key->getClientOriginalName() }}</span>
+                                @if ($answer_key)
+                                    <div
+                                        class="mt-3.5 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 text-xs text-emerald-700 dark:text-emerald-300 flex items-center justify-between shadow-sm animate-fade-in">
+                                        <div class="flex items-center gap-2 truncate">
+                                            <flux:icon.check-circle class="w-4 h-4 text-emerald-600" />
+                                            <span
+                                                class="truncate font-bold">{{ $answer_key->getClientOriginalName() }}</span>
+                                        </div>
+                                        <flux:button wire:click="$set('answer_key', null)" size="xs" variant="ghost"
+                                            icon="x-mark" color="emerald" tooltip="Remover arquivo" />
                                     </div>
-                                    <flux:button wire:click="$set('answer_key', null)" size="xs" variant="ghost"
-                                        icon="x-mark" color="emerald" tooltip="Remover arquivo" />
-                                </div>
-                            @endif
+                                @endif
+                            </div>
                         </div>
-                    </div>
-                </flux:card>
+                    </flux:card>
 
-                <!-- Documento B: Prova Original -->
-                <flux:card
-                    class="relative overflow-hidden group border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 transition-colors shadow-sm">
-                    <div class="flex items-start gap-4">
-                        <div
-                            class="p-3 rounded-xl bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30">
-                            <flux:icon.document-text class="w-6 h-6" />
-                        </div>
-                        <div class="flex-1">
-                            <flux:heading size="md" class="font-bold">Documento B: Prova Original em Branco
-                            </flux:heading>
-                            <flux:subheading class="mb-4 text-xs">Ajuda o Gemini a decifrar a estrutura de questões.
-                            </flux:subheading>
+                    <!-- Documento B: Prova Original -->
+                    <flux:card
+                        class="relative overflow-hidden group border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 transition-colors shadow-sm">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="p-3 rounded-xl bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30">
+                                <flux:icon.document-text class="w-6 h-6" />
+                            </div>
+                            <div class="flex-1">
+                                <flux:heading size="md" class="font-bold">Documento B: Prova Original em Branco
+                                </flux:heading>
+                                <flux:subheading class="mb-4 text-xs">Ajuda o Gemini a decifrar a estrutura de questões.
+                                </flux:subheading>
 
-                            <flux:input type="file" wire:model="exam_file" accept=".pdf,image/*,.docx,.doc,.txt" />
+                                <flux:input type="file" wire:model="exam_file" accept=".pdf,image/*,.docx,.doc,.txt" />
 
-                            @if ($exam_file)
-                                <div
-                                    class="mt-3.5 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between shadow-sm animate-fade-in">
-                                    <div class="flex items-center gap-2 truncate">
-                                        <flux:icon.check-circle class="w-4 h-4 text-blue-600" />
-                                        <span
-                                            class="truncate font-bold">{{ $exam_file->getClientOriginalName() }}</span>
+                                @if ($exam_file)
+                                    <div
+                                        class="mt-3.5 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between shadow-sm animate-fade-in">
+                                        <div class="flex items-center gap-2 truncate">
+                                            <flux:icon.check-circle class="w-4 h-4 text-blue-600" />
+                                            <span
+                                                class="truncate font-bold">{{ $exam_file->getClientOriginalName() }}</span>
+                                        </div>
+                                        <flux:button wire:click="$set('exam_file', null)" size="xs" variant="ghost"
+                                            icon="x-mark" color="blue" tooltip="Remover arquivo" />
                                     </div>
-                                    <flux:button wire:click="$set('exam_file', null)" size="xs" variant="ghost"
-                                        icon="x-mark" color="blue" tooltip="Remover arquivo" />
-                                </div>
-                            @endif
+                                @endif
+                            </div>
                         </div>
-                    </div>
-                </flux:card>
-            </div>
-        </section>
+                    </flux:card>
+                </div>
+            </section>
+        @endif
 
-        <!-- ETAPA 3: SUBMISSÃO DOS ALUNOS -->
+        <!-- ETAPA FINAL: SUBMISSÃO DOS ALUNOS -->
         <section class="space-y-4">
             <div class="flex items-center gap-3 mb-2">
                 <flux:badge color="indigo"
-                    class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">3
+                    class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">{{ $type === 'exam' ? '3' : '2' }}
                 </flux:badge>
                 <div>
-                    <flux:heading size="lg" class="font-bold">Provas dos Alunos</flux:heading>
-                    <flux:subheading>Selecione as provas entregues pelos alunos para iniciar o pipeline de correção.
+                    <flux:heading size="lg" class="font-bold">Entregas dos Alunos</flux:heading>
+                    <flux:subheading>Selecione as entregas dos alunos para iniciar o pipeline de correção.
                     </flux:subheading>
                 </div>
             </div>
@@ -352,7 +349,7 @@ new #[Layout('layouts.main')] class extends Component {
 
                         <div class="w-full max-w-xl mx-auto space-y-4 px-4">
                             <flux:input wire:model="student_submissions" type="file"
-                                label="Selecione Provas de Alunos"
+                                label="Selecione Entregas de Alunos"
                                 placeholder="Selecione um ZIP ou múltiplos arquivos..." multiple required
                                 help="Selecione múltiplos arquivos (PDF, Imagens, Word, TXT) ou um arquivo .ZIP unificado." />
 
@@ -382,16 +379,14 @@ new #[Layout('layouts.main')] class extends Component {
                             @endif
 
                             <!-- Tip Alert box -->
-                            <div
-                                class="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex items-start gap-3 text-left">
-                                <flux:icon.light-bulb class="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-                                <div class="text-xs text-amber-800 dark:text-amber-300">
-                                    <span class="font-bold block mb-1">Dica para grandes turmas:</span>
+                            <flux:callout variant="warning" icon="light-bulb">
+                                <flux:callout.heading>Dica para grandes turmas:</flux:callout.heading>
+                                <flux:callout.text>
                                     Se você possui mais de 10 alunos, é altamente recomendado empacotar as fotos ou PDFs
-                                    de todas as provas em um único arquivo **.ZIP** e enviá-lo. Isso acelera o
+                                    de todas as entregas em um único arquivo <strong>.ZIP</strong> e enviá-lo. Isso acelera o
                                     processamento em mais de 3x.
-                                </div>
-                            </div>
+                                </flux:callout.text>
+                            </flux:callout>
                         </div>
                     </div>
                 </flux:card>

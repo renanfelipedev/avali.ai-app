@@ -45,6 +45,7 @@
                             <flux:table.column>Título</flux:table.column>
                             <flux:table.column>Usuário</flux:table.column>
                             <flux:table.column>Data</flux:table.column>
+                            <flux:table.column>Ações</flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>
                             @foreach ($stats['recent_exams'] ?? [] as $exam)
@@ -54,6 +55,9 @@
                                     </flux:table.cell>
                                     <flux:table.cell class="truncate max-w-[150px]">{{ Str::limit($exam->user->name, 25) }}</flux:table.cell>
                                     <flux:table.cell class="whitespace-nowrap">{{ $exam->created_at->format('d/m H:i') }}</flux:table.cell>
+                                    <flux:table.cell>
+                                        <flux:button href="{{ route('exams.show', $exam) }}" variant="ghost" size="sm" icon="eye">Ver</flux:button>
+                                    </flux:table.cell>
                                 </flux:table.row>
                             @endforeach
                         </flux:table.rows>

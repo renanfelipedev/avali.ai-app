@@ -11,7 +11,7 @@ class ExamPdfController extends Controller
 {
     public function download(Request $request, Exam $exam)
     {
-        if ($exam->user_id != auth()->id()) {
+        if ($exam->user_id != auth()->id() && !auth()->user()->isAdmin()) {
             abort(403);
         }
 

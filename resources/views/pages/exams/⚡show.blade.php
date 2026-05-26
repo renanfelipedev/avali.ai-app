@@ -9,10 +9,13 @@ use Livewire\Component;
 new #[Layout('layouts.main')] class extends Component
 {
     public Exam $exam;
+    public bool $isOwner = false;
 
     public function mount(Exam $exam)
     {
-        if ($exam->user_id != auth()->id()) {
+        $this->isOwner = $exam->user_id == auth()->id();
+        
+        if (!$this->isOwner && !auth()->user()->isAdmin()) {
             abort(403);
         }
         $this->exam = $exam;
@@ -20,6 +23,10 @@ new #[Layout('layouts.main')] class extends Component
 
     public function downloadSource()
     {
+        if (!$this->isOwner) {
+            abort(403);
+        }
+
         if (!empty($this->exam->content_json)) {
             return response()->streamDownload(
                 fn () => print(json_encode($this->exam->content_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)),
@@ -70,42 +77,49 @@ new #[Layout('layouts.main')] class extends Component
         </div>
         <div class="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
             <flux:button href="{{ route('exams.index') }}" variant="ghost" icon="arrow-left" class="w-full sm:w-auto">Voltar</flux:button>
-            <flux:button wire:click="downloadSource" variant="filled" color="zinc" icon="arrow-down-tray" class="w-full sm:w-auto">
-                {{ (!empty($exam->content_json) || $exam->mime_type === 'application/json') ? 'Baixar JSON' : 'Baixar Markdown' }}
-            </flux:button>
-            <flux:dropdown>
-                <flux:button variant="primary" icon="document" class="w-full sm:w-auto">
-                    Baixar PDF
+            
+            @if($isOwner)
+                <flux:button wire:click="downloadSource" variant="filled" color="zinc" icon="arrow-down-tray" class="w-full sm:w-auto">
+                    {{ (!empty($exam->content_json) || $exam->mime_type === 'application/json') ? 'Baixar JSON' : 'Baixar Markdown' }}
                 </flux:button>
-                <flux:menu>
-                    <flux:menu.item href="{{ route('exams.pdf', $exam->id) }}" icon="document-text">
-                        Padrão (Avali.AI)
-                    </flux:menu.item>
-                    @foreach($printProfiles as $profile)
-                        <flux:menu.item href="{{ route('exams.pdf', ['exam' => $exam->id, 'profile' => $profile->id]) }}" icon="building-office-2">
-                            {{ $profile->institution_name }}
-                        </flux:menu.item>
-                    @endforeach
-                    <flux:menu.separator />
-                    <flux:menu.item href="{{ route('exams.settings') }}" icon="cog-6-tooth">
-                        Gerenciar Perfis
-                    </flux:menu.item>
-                </flux:menu>
-            </flux:dropdown>
-
-            @if($printProfiles->whereNotNull('template_path')->count() > 0)
                 <flux:dropdown>
-                    <flux:button variant="ghost" color="indigo" icon="document-text" class="w-full sm:w-auto">
-                        Word (Modelos)
+                    <flux:button variant="primary" icon="document" class="w-full sm:w-auto">
+                        Baixar PDF
                     </flux:button>
                     <flux:menu>
-                        @foreach($printProfiles->whereNotNull('template_path') as $profile)
-                            <flux:menu.item href="{{ route('exams.word', ['exam' => $exam->id, 'profile' => $profile->id]) }}" icon="document">
+                        <flux:menu.item href="{{ route('exams.pdf', $exam->id) }}" icon="document-text">
+                            Padrão (Avali.AI)
+                        </flux:menu.item>
+                        @foreach($printProfiles as $profile)
+                            <flux:menu.item href="{{ route('exams.pdf', ['exam' => $exam->id, 'profile' => $profile->id]) }}" icon="building-office-2">
                                 {{ $profile->institution_name }}
                             </flux:menu.item>
                         @endforeach
+                        <flux:menu.separator />
+                        <flux:menu.item href="{{ route('exams.settings') }}" icon="cog-6-tooth">
+                            Gerenciar Perfis
+                        </flux:menu.item>
                     </flux:menu>
                 </flux:dropdown>
+
+                @if($printProfiles->whereNotNull('template_path')->count() > 0)
+                    <flux:dropdown>
+                        <flux:button variant="ghost" color="indigo" icon="document-text" class="w-full sm:w-auto">
+                            Word (Modelos)
+                        </flux:button>
+                        <flux:menu>
+                            @foreach($printProfiles->whereNotNull('template_path') as $profile)
+                                <flux:menu.item href="{{ route('exams.word', ['exam' => $exam->id, 'profile' => $profile->id]) }}" icon="document">
+                                    {{ $profile->institution_name }}
+                                </flux:menu.item>
+                            @endforeach
+                        </flux:menu>
+                    </flux:dropdown>
+                @endif
+            @else
+                <flux:button href="{{ route('exams.pdf', $exam->id) }}" variant="primary" icon="document" class="w-full sm:w-auto">
+                    Baixar PDF (Padrão)
+                </flux:button>
             @endif
         </div>
     </div>

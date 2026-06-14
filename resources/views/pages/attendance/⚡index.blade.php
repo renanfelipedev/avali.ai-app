@@ -16,6 +16,19 @@ new #[Layout('layouts.main')] class extends Component
     public ?float $latitude = null;
     public ?float $longitude = null;
 
+    public string $searchClass = '';
+    public string $searchStatus = 'all';
+
+    public function updatingSearchClass()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingSearchStatus()
+    {
+        $this->resetPage();
+    }
+
     public function rules(): array
     {
         return [
@@ -37,12 +50,30 @@ new #[Layout('layouts.main')] class extends Component
 
     public function with(): array
     {
+        AttendanceSession::closeExpiredSessions();
+
+        $query = auth()->user()
+            ->attendanceSessions()
+            ->withCount('records')
+            ->latest();
+
+        if (!empty($this->searchClass)) {
+            $query->where(function ($q) {
+                $q->where('class_name', 'like', '%' . $this->searchClass . '%')
+                    ->orWhereHas('classroom', function ($q2) {
+                        $q2->where('name', 'like', '%' . $this->searchClass . '%');
+                    });
+            });
+        }
+
+        if ($this->searchStatus === 'active') {
+            $query->where('is_active', true);
+        } elseif ($this->searchStatus === 'inactive') {
+            $query->where('is_active', false);
+        }
+
         return [
-            'sessions' => auth()->user()
-                ->attendanceSessions()
-                ->withCount('records')
-                ->latest()
-                ->paginate(10),
+            'sessions' => $query->paginate(10),
             'classrooms' => auth()->user()->classrooms()->latest()->get(),
         ];
     }
@@ -150,6 +181,21 @@ new #[Layout('layouts.main')] class extends Component
         <div class="lg:col-span-2">
             <flux:card class="overflow-hidden">
                 <flux:heading size="lg" class="mb-4">Chamadas Anteriores</flux:heading>
+
+                <!-- Filtros -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                    <div class="sm:col-span-2 flex gap-2">
+                        <flux:input wire:model.live.debounce.250ms="searchClass" placeholder="Filtrar por turma ou título..." icon="magnifying-glass" class="flex-1" />
+                        <flux:button wire:click="$refresh" variant="primary">Filtrar</flux:button>
+                    </div>
+                    <div class="sm:col-span-1">
+                        <flux:select wire:model.live="searchStatus">
+                            <flux:select.option value="all">Todos os Status</flux:select.option>
+                            <flux:select.option value="active">Ativas (Abertas)</flux:select.option>
+                            <flux:select.option value="inactive">Finalizadas</flux:select.option>
+                        </flux:select>
+                    </div>
+                </div>
 
                 <div class="overflow-x-auto w-full scrollbar-none">
                     <flux:table>

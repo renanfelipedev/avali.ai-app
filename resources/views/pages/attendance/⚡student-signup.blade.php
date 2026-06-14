@@ -36,6 +36,7 @@ new class extends Component
 
     public function mount(string $uuid)
     {
+        AttendanceSession::closeExpiredSessions();
         $this->session = AttendanceSession::where('uuid', $uuid)->firstOrFail();
 
         // Check if the student has already checked in via cookie
@@ -53,6 +54,9 @@ new class extends Component
 
     public function register()
     {
+        AttendanceSession::closeExpiredSessions();
+        $this->session->refresh();
+
         $this->validate();
 
         // Double check session is active
@@ -228,6 +232,8 @@ new class extends Component
                 
                 <flux:input 
                     wire:model="student_name" 
+                    name="student_name"
+                    autocomplete="name"
                     label="Nome Completo" 
                     placeholder="Digite seu nome completo" 
                     icon="user" 
@@ -243,7 +249,7 @@ new class extends Component
         @endif
 
         <div class="text-center text-[10px] text-zinc-400 dark:text-zinc-600 font-mono">
-            ID: {{ substr($session->uuid, 0, 8) }} | IP: {{ request()->ip() }}
+            ID: {{ substr($session->uuid, 0, 8) }}
         </div>
     </div>
 </div>

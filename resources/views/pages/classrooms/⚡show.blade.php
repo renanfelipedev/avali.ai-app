@@ -5,11 +5,17 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts.main')] class extends Component
 {
+    use WithFileUploads;
+
     public Classroom $classroom;
     public string $activeTab = 'alunos';
+
+    #[Validate('nullable|file|mimes:txt,csv|max:5120')]
+    public $studentListFile;
 
     // Para criar novo aluno
     #[Validate('required|string|max:255')]
@@ -100,6 +106,94 @@ new #[Layout('layouts.main')] class extends Component
         $this->classroom->students()->detach($studentId);
         unset($this->classroom->students);
     }
+
+    public function importStudents()
+    {
+        $this->validateOnly('studentListFile');
+
+        if (!$this->studentListFile) {
+            return;
+        }
+
+        $content = file_get_contents($this->studentListFile->getRealPath());
+        $lines = explode("\n", $content);
+        
+        $studentIds = [];
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) {
+                continue;
+            }
+
+            $name = '';
+            $email = null;
+
+            // Try to split by comma or semicolon
+            if (str_contains($line, ';')) {
+                $parts = explode(';', $line);
+            } elseif (str_contains($line, ',')) {
+                $parts = explode(',', $line);
+            } else {
+                $parts = [$line];
+            }
+
+            if (count($parts) >= 2) {
+                $part1 = trim($parts[0]);
+                $part2 = trim($parts[1]);
+
+                // Determine which is name and which is email
+                if (filter_var($part1, FILTER_VALIDATE_EMAIL)) {
+                    $email = $part1;
+                    $name = $part2;
+                } elseif (filter_var($part2, FILTER_VALIDATE_EMAIL)) {
+                    $email = $part2;
+                    $name = $part1;
+                } else {
+                    $name = $part1;
+                    $email = $part2;
+                }
+            } else {
+                $name = trim($parts[0]);
+            }
+
+            if (empty($name)) {
+                continue;
+            }
+
+            // Ensure email is valid, otherwise null
+            if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $email = null;
+            }
+
+            // Find or create student for user
+            if ($email) {
+                $student = Auth::user()->students()->where('email', $email)->first();
+            } else {
+                $student = Auth::user()->students()->where('name', $name)->whereNull('email')->first();
+            }
+
+            if (!$student) {
+                $student = Auth::user()->students()->create([
+                    'name' => $name,
+                    'email' => $email,
+                    'institution' => $this->classroom->institution,
+                ]);
+            }
+
+            $studentIds[] = $student->id;
+        }
+
+        // Exclude previous students, keeping only the ones from the file
+        $this->classroom->students()->sync($studentIds);
+
+        $this->reset('studentListFile');
+        $this->modal('import-students')->close();
+
+        unset($this->classroom->students);
+
+        session()->flash('success', 'Lista de alunos importada com sucesso!');
+    }
 };
 ?>
 
@@ -147,9 +241,14 @@ new #[Layout('layouts.main')] class extends Component
         @if($activeTab === 'alunos')
             <div class="flex justify-between items-center mb-4">
                 <flux:heading size="lg">Lista de Alunos</flux:heading>
-                <flux:modal.trigger name="add-student">
-                    <flux:button variant="primary" size="sm" icon="plus">Adicionar Aluno</flux:button>
-                </flux:modal.trigger>
+                <div class="flex gap-2">
+                    <flux:modal.trigger name="import-students">
+                        <flux:button variant="filled" size="sm" icon="arrow-up-tray">Importar Lista</flux:button>
+                    </flux:modal.trigger>
+                    <flux:modal.trigger name="add-student">
+                        <flux:button variant="primary" size="sm" icon="plus">Adicionar Aluno</flux:button>
+                    </flux:modal.trigger>
+                </div>
             </div>
 
             <flux:card class="overflow-hidden">
@@ -269,6 +368,32 @@ new #[Layout('layouts.main')] class extends Component
                     <flux:button variant="ghost">Cancelar</flux:button>
                 </flux:modal.close>
                 <flux:button type="submit" variant="primary">Salvar Alterações</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    <!-- Modal Importar Alunos -->
+    <flux:modal name="import-students" class="max-w-md">
+        <form wire:submit="importStudents">
+            <flux:heading size="lg" class="mb-2">Importar Lista de Alunos</flux:heading>
+            <flux:subheading class="mb-6">Importe alunos a partir de um arquivo .txt ou .csv (um por linha, formato: Nome ou Nome,Email).</flux:subheading>
+            
+            <div class="space-y-4">
+                <flux:input wire:model="studentListFile" type="file" label="Arquivo de Alunos" accept=".txt,.csv" required />
+                
+                <flux:callout variant="warning" icon="exclamation-triangle">
+                    <flux:callout.heading>Atenção</flux:callout.heading>
+                    <flux:callout.text>
+                        Ao importar uma nova lista, <strong>todos os alunos anteriores desta turma serão removidos</strong>, restando apenas os contidos no arquivo.
+                    </flux:callout.text>
+                </flux:callout>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancelar</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Importar</flux:button>
             </div>
         </form>
     </flux:modal>

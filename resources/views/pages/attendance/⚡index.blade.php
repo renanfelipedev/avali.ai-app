@@ -6,8 +6,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Layout('layouts.main')] class extends Component
-{
+new #[Layout('layouts.main')] class extends Component {
     use WithPagination;
 
     public string $class_name = '';
@@ -50,19 +49,13 @@ new #[Layout('layouts.main')] class extends Component
 
     public function with(): array
     {
-        AttendanceSession::closeExpiredSessions();
-
-        $query = auth()->user()
-            ->attendanceSessions()
-            ->withCount('records')
-            ->latest();
+        $query = auth()->user()->attendanceSessions()->withCount('records')->latest();
 
         if (!empty($this->searchClass)) {
             $query->where(function ($q) {
-                $q->where('class_name', 'like', '%' . $this->searchClass . '%')
-                    ->orWhereHas('classroom', function ($q2) {
-                        $q2->where('name', 'like', '%' . $this->searchClass . '%');
-                    });
+                $q->where('class_name', 'like', '%' . $this->searchClass . '%')->orWhereHas('classroom', function ($q2) {
+                    $q2->where('name', 'like', '%' . $this->searchClass . '%');
+                });
             });
         }
 
@@ -130,15 +123,15 @@ new #[Layout('layouts.main')] class extends Component
                             this.$wire.startSession();
                             return;
                         }
-                        
+                
                         this.loadingLocation = true;
-                        
+                
                         if (!navigator.geolocation) {
                             alert('Geolocalização não é suportada pelo seu navegador.');
                             this.loadingLocation = false;
                             return;
                         }
-
+                
                         navigator.geolocation.getCurrentPosition(
                             (position) => {
                                 this.$wire.set('latitude', position.coords.latitude);
@@ -148,26 +141,22 @@ new #[Layout('layouts.main')] class extends Component
                             (error) => {
                                 alert('Para utilizar o Geofencing, você precisa PERMITIR que o navegador acesse sua localização (GPS).');
                                 this.loadingLocation = false;
-                            },
-                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                         );
                     }
                 }" @submit.prevent="submitForm" class="space-y-4">
-                    <flux:input 
-                        wire:model="class_name" 
-                        label="Nome da Turma / Aula" 
-                        placeholder="Ex: Engenharia de Software 3º A" 
-                        icon="academic-cap" 
-                    />
+                    <flux:input wire:model="class_name" label="Nome da Turma / Aula"
+                        placeholder="Ex: Engenharia de Software 3º A" icon="academic-cap" />
 
                     <flux:select wire:model="classroom_id" label="Vincular a uma Turma (Opcional)">
                         <flux:select.option value="">Sem vínculo</flux:select.option>
-                        @foreach($classrooms as $classroom)
+                        @foreach ($classrooms as $classroom)
                             <flux:select.option value="{{ $classroom->id }}">{{ $classroom->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
-                    <flux:switch wire:model="require_geolocation" label="Exigir Localização (Geofencing)" description="Garante que os alunos estejam num raio de 100m de você ao assinar." />
+                    <flux:switch wire:model="require_geolocation" label="Exigir Localização (Geofencing)"
+                        description="Garante que os alunos estejam num raio de 100m de você ao assinar." />
 
                     <flux:button type="submit" variant="primary" class="w-full" icon="qr-code">
                         <span x-show="!loadingLocation">Gerar QR Code e Iniciar</span>
@@ -185,7 +174,8 @@ new #[Layout('layouts.main')] class extends Component
                 <!-- Filtros -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                     <div class="sm:col-span-2 flex gap-2">
-                        <flux:input wire:model.live.debounce.250ms="searchClass" placeholder="Filtrar por turma ou título..." icon="magnifying-glass" class="flex-1" />
+                        <flux:input wire:model.live.debounce.250ms="searchClass"
+                            placeholder="Filtrar por turma ou título..." icon="magnifying-glass" class="flex-1" />
                         <flux:button wire:click="$refresh" variant="primary">Filtrar</flux:button>
                     </div>
                     <div class="sm:col-span-1">
@@ -211,13 +201,15 @@ new #[Layout('layouts.main')] class extends Component
                             @forelse ($sessions as $session)
                                 <flux:table.row class="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors">
                                     <flux:table.cell>
-                                        <span class="font-bold text-zinc-900 dark:text-white">{{ $session->class_name }}</span>
+                                        <span
+                                            class="font-bold text-zinc-900 dark:text-white">{{ $session->class_name }}</span>
                                     </flux:table.cell>
                                     <flux:table.cell>
                                         {{ $session->created_at->setTimezone('America/Bahia')->format('d/m/Y H:i') }}
                                     </flux:table.cell>
                                     <flux:table.cell>
-                                        <flux:badge color="zinc" size="sm" class="font-bold">{{ $session->records_count }}</flux:badge>
+                                        <flux:badge color="zinc" size="sm" class="font-bold">
+                                            {{ $session->records_count }}</flux:badge>
                                     </flux:table.cell>
                                     <flux:table.cell>
                                         @if ($session->is_active)
@@ -228,8 +220,13 @@ new #[Layout('layouts.main')] class extends Component
                                     </flux:table.cell>
                                     <flux:table.cell>
                                         <div class="flex items-center gap-1">
-                                            <flux:button href="{{ route('attendance.show', $session->uuid) }}" size="xs" variant="ghost" icon="eye" tooltip="Visualizar Chamada" />
-                                            <flux:button wire:click="deleteSession({{ $session->id }})" wire:confirm="Tem certeza que deseja excluir esta chamada? Todos os registros de presença serão apagados." size="xs" variant="ghost" icon="trash" color="danger" tooltip="Excluir" />
+                                            <flux:button href="{{ route('attendance.show', $session->uuid) }}"
+                                                size="xs" variant="ghost" icon="eye"
+                                                tooltip="Visualizar Chamada" />
+                                            <flux:button wire:click="deleteSession({{ $session->id }})"
+                                                wire:confirm="Tem certeza que deseja excluir esta chamada? Todos os registros de presença serão apagados."
+                                                size="xs" variant="ghost" icon="trash" color="danger"
+                                                tooltip="Excluir" />
                                         </div>
                                     </flux:table.cell>
                                 </flux:table.row>

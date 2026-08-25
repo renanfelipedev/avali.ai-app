@@ -14,7 +14,6 @@ new #[Layout('layouts.main')] class extends Component
     public function mount(AttendanceSession $session)
     {
         $this->authorizeOwnership($session);
-        AttendanceSession::closeExpiredSessions();
         $session->refresh();
         $this->session = $session;
     }

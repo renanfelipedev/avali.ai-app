@@ -159,8 +159,10 @@ new #[Layout('layouts.main')] class extends Component {
                         description="Garante que os alunos estejam num raio de 100m de você ao assinar." />
 
                     <flux:button type="submit" variant="primary" class="w-full" icon="qr-code">
-                        <span x-show="!loadingLocation">Gerar QR Code e Iniciar</span>
-                        <span x-show="loadingLocation">Obtendo sua localização GPS...</span>
+                        <span x-show="!loadingLocation" class="hidden sm:inline">Gerar QR Code e Iniciar</span>
+                        <span x-show="!loadingLocation" class="inline sm:hidden">Iniciar Chamada</span>
+                        <span x-show="loadingLocation" class="hidden sm:inline">Obtendo sua localização GPS...</span>
+                        <span x-show="loadingLocation" class="inline sm:hidden">Obtendo GPS...</span>
                     </flux:button>
                 </form>
             </flux:card>

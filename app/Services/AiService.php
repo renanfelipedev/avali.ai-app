@@ -30,7 +30,7 @@ class AiService
         $currentKey = $this->keyService->getActiveKey();
         $this->keyService->configureContainerClient($currentKey);
 
-        $models = config('gemini.fallback_models', []);
+        $models = $this->keyService->getFallbackModels();
 
         // Se houver um modelo preferido que não está na lista, coloca ele no topo
         if ($preferredModel && ! in_array($preferredModel, $models)) {

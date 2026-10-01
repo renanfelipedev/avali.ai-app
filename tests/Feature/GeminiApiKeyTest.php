@@ -234,3 +234,34 @@ test('admin can update key name without re-entering the secret key', function ()
     expect($key->name)->toBe('Updated Name');
     expect($key->key)->toBe('AIzaSySecretOriginalKey1234567890');
 });
+
+test('system persists default model and fallback chain dynamically', function () {
+    $service = app(GeminiApiKeyService::class);
+
+    // Valor padrão inicial
+    expect($service->getDefaultModel())->toBe(config('gemini.default_model', 'gemini-2.5-flash'));
+
+    // Altera modelo padrão para uma nova versão (ex: gemini-2.0-flash)
+    $service->setDefaultModel('gemini-2.0-flash');
+    expect($service->getDefaultModel())->toBe('gemini-2.0-flash');
+
+    // O modelo padrão é automaticamente inserido na lista de fallback
+    expect($service->getFallbackModels())->toContain('gemini-2.0-flash');
+
+    // Define cadeia personalizada de fallback
+    $service->setFallbackModels(['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']);
+    expect($service->getFallbackModels())->toBe(['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']);
+});
+
+test('admin can switch to models tab and set default model via livewire', function () {
+    $admin = createAdminUser();
+    $key = GeminiApiKey::factory()->default()->create();
+
+    Livewire::actingAs($admin)
+        ->test('pages::gemini-keys.index')
+        ->set('tab', 'models')
+        ->call('setAsDefaultModel', 'gemini-1.5-flash')
+        ->assertHasNoErrors();
+
+    expect(app(GeminiApiKeyService::class)->getDefaultModel())->toBe('gemini-1.5-flash');
+});

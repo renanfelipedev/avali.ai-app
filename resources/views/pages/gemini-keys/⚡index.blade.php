@@ -7,6 +7,8 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 new #[Layout('layouts.main')] class extends Component {
+    public string $tab = 'keys'; // 'keys' | 'models'
+
     public $showModal = false;
     public ?int $editingKeyId = null;
 
@@ -17,11 +19,18 @@ new #[Layout('layouts.main')] class extends Component {
     public bool $is_default = false;
     public int $priority = 0;
 
-    // Test state
+    // Key test state
     public ?int $testingKeyId = null;
     public ?array $testResult = null;
     public bool $showTestModal = false;
     public bool $isTestingActive = false;
+
+    // Models Explorer state
+    public array $apiModels = [];
+    public bool $isLoadingModels = false;
+    public ?string $testingModel = null;
+    public ?array $modelTestOutput = null;
+    public bool $showModelTestModal = false;
 
     public function createKey(): void
     {
@@ -37,7 +46,7 @@ new #[Layout('layouts.main')] class extends Component {
 
         $this->editingKeyId = $apiKey->id;
         $this->name = $apiKey->name;
-        $this->key = ''; // Manter em branco por segurança, preencher apenas se for alterar
+        $this->key = '';
         $this->is_active = (bool) $apiKey->is_active;
         $this->is_default = (bool) $apiKey->is_default;
         $this->priority = (int) $apiKey->priority;
@@ -99,7 +108,6 @@ new #[Layout('layouts.main')] class extends Component {
             Flux::toast('Nova chave de API cadastrada com sucesso!');
         }
 
-        // Reconfigura o cliente do container para garantir a sincronização
         $keyService->configureContainerClient();
 
         $this->showModal = false;
@@ -113,7 +121,6 @@ new #[Layout('layouts.main')] class extends Component {
 
         $apiKey->delete();
 
-        // Se deletou a padrão, elege a próxima ativa como padrão
         if ($wasDefault) {
             $next = GeminiApiKey::where('is_active', true)->orderBy('priority')->first();
             if ($next) {
@@ -210,6 +217,68 @@ new #[Layout('layouts.main')] class extends Component {
         }
     }
 
+    public function loadApiModels(GeminiApiKeyService $keyService): void
+    {
+        $this->isLoadingModels = true;
+
+        try {
+            $this->apiModels = $keyService->getAvailableModels();
+
+            if (empty($this->apiModels)) {
+                Flux::toast(variant: 'warning', heading: 'Nenhum modelo retornado', text: 'A API não retornou modelos com suporte a generateContent para esta chave.');
+            } else {
+                Flux::toast(count($this->apiModels) . ' modelos encontrados na sua conta do Gemini!');
+            }
+        } catch (\Throwable $e) {
+            Flux::toast(variant: 'danger', heading: 'Erro ao consultar modelos', text: $e->getMessage());
+        } finally {
+            $this->isLoadingModels = false;
+        }
+    }
+
+    public function testSpecificModel(string $modelName, GeminiApiKeyService $keyService): void
+    {
+        $this->testingModel = $modelName;
+
+        $result = $keyService->testSpecificModel($modelName);
+        $this->modelTestOutput = $result;
+        $this->showModelTestModal = true;
+
+        $this->testingModel = null;
+
+        if ($result['success']) {
+            Flux::toast("Modelo '{$modelName}' online ({$result['latency_ms']}ms)!");
+        } else {
+            Flux::toast(variant: 'danger', heading: 'Modelo indisponível', text: $result['message']);
+        }
+    }
+
+    public function setAsDefaultModel(string $modelName, GeminiApiKeyService $keyService): void
+    {
+        $keyService->setDefaultModel($modelName);
+        Flux::toast("Modelo '{$modelName}' definido como principal do sistema!");
+    }
+
+    public function toggleFallback(string $modelName, GeminiApiKeyService $keyService): void
+    {
+        $fallbacks = $keyService->getFallbackModels();
+        $defaultModel = $keyService->getDefaultModel();
+
+        if (in_array($modelName, $fallbacks)) {
+            if ($modelName === $defaultModel) {
+                Flux::toast(variant: 'warning', heading: 'Ação não permitida', text: 'O modelo padrão deve permanecer na lista de fallback.');
+                return;
+            }
+            $fallbacks = array_values(array_filter($fallbacks, fn ($m) => $m !== $modelName));
+            $keyService->setFallbackModels($fallbacks);
+            Flux::toast("Modelo '{$modelName}' removido da fila de fallback.");
+        } else {
+            $fallbacks[] = $modelName;
+            $keyService->setFallbackModels($fallbacks);
+            Flux::toast("Modelo '{$modelName}' adicionado à fila de fallback!");
+        }
+    }
+
     public function with(): array
     {
         $keyService = app(GeminiApiKeyService::class);
@@ -223,6 +292,9 @@ new #[Layout('layouts.main')] class extends Component {
         $failedRequests = $keys->sum('failed_requests');
         $successRate = $totalRequests > 0 ? round(($successfulRequests / $totalRequests) * 100, 1) : 100;
 
+        $defaultModel = $keyService->getDefaultModel();
+        $fallbackModels = $keyService->getFallbackModels();
+
         return [
             'keys' => $keys,
             'activeKey' => $activeKey,
@@ -231,6 +303,8 @@ new #[Layout('layouts.main')] class extends Component {
             'successfulRequests' => $successfulRequests,
             'failedRequests' => $failedRequests,
             'successRate' => $successRate,
+            'defaultModel' => $defaultModel,
+            'fallbackModels' => $fallbackModels,
         ];
     }
 };
@@ -241,7 +315,7 @@ new #[Layout('layouts.main')] class extends Component {
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <flux:heading size="xl">Gerenciamento de APIs Gemini</flux:heading>
-            <flux:subheading>Gerencie as chaves de inteligência artificial utilizadas para correção e geração de provas.</flux:subheading>
+            <flux:subheading>Gerencie as chaves e descubra quais modelos da inteligência artificial estão disponíveis para uso.</flux:subheading>
         </div>
 
         <div class="flex items-center gap-3">
@@ -297,7 +371,7 @@ new #[Layout('layouts.main')] class extends Component {
                 </span>
             </div>
             <div class="mt-2 text-xs text-zinc-500">
-                Fallback dinâmico disponível
+                Rotação automática configurada
             </div>
         </flux:card>
 
@@ -352,193 +426,392 @@ new #[Layout('layouts.main')] class extends Component {
             </div>
         </flux:card>
 
-        {{-- Card 4: Status do Modelo Padrão --}}
+        {{-- Card 4: Modelo Padrão do Sistema --}}
         <flux:card>
             <div class="flex items-center justify-between">
-                <span class="text-xs uppercase font-medium tracking-wider text-zinc-500 dark:text-zinc-400">Modelo Padrão</span>
+                <span class="text-xs uppercase font-medium tracking-wider text-zinc-500 dark:text-zinc-400">Modelo Padrão Ativo</span>
                 <flux:icon name="cpu-chip" class="text-indigo-400 size-5" />
             </div>
             <div class="mt-2">
                 <span class="text-sm font-bold font-mono text-zinc-900 dark:text-white">
-                    {{ config('gemini.default_model', 'gemini-2.5-flash') }}
+                    {{ $defaultModel }}
                 </span>
             </div>
-            <div class="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
-                <span class="size-2 rounded-full bg-emerald-500"></span>
-                <span>Fallback: {{ implode(', ', config('gemini.fallback_models', [])) }}</span>
+            <div class="mt-2 flex items-center gap-1.5 text-xs text-zinc-500 truncate" title="{{ implode(', ', $fallbackModels) }}">
+                <span class="size-2 rounded-full bg-emerald-500 shrink-0"></span>
+                <span class="truncate">Fallback: {{ implode(' → ', $fallbackModels) }}</span>
             </div>
         </flux:card>
     </div>
 
-    {{-- Tabela de Chaves --}}
-    <flux:card class="overflow-hidden">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <flux:heading size="lg">Chaves Cadastradas</flux:heading>
-                <flux:subheading>Gerencie as credenciais e prioridades de rotação da API.</flux:subheading>
+    {{-- Tabs de Navegação: Chaves vs Explorador de Modelos --}}
+    <div class="flex border-b border-zinc-200 dark:border-zinc-700 gap-4">
+        <button
+            type="button"
+            wire:click="$set('tab', 'keys')"
+            class="pb-3 text-sm font-medium border-b-2 transition-colors {{ $tab === 'keys' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}"
+        >
+            <div class="flex items-center gap-2">
+                <flux:icon name="key" class="size-4" />
+                <span>Chaves de API ({{ $keys->count() }})</span>
             </div>
-        </div>
+        </button>
 
-        <div class="overflow-x-auto w-full scrollbar-none">
-            <flux:table>
-                <flux:table.columns>
-                    <flux:table.column>Identificação</flux:table.column>
-                    <flux:table.column>Chave Mascarada</flux:table.column>
-                    <flux:table.column>Papel</flux:table.column>
-                    <flux:table.column>Status</flux:table.column>
-                    <flux:table.column>Uso (Sucesso / Falha)</flux:table.column>
-                    <flux:table.column>Último Teste</flux:table.column>
-                    <flux:table.column class="text-right">Ações</flux:table.column>
-                </flux:table.columns>
+        <button
+            type="button"
+            wire:click="$set('tab', 'models')"
+            class="pb-3 text-sm font-medium border-b-2 transition-colors {{ $tab === 'models' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}"
+        >
+            <div class="flex items-center gap-2">
+                <flux:icon name="cpu-chip" class="size-4" />
+                <span>Explorador de Modelos da API</span>
+                @if (count($apiModels) > 0)
+                    <flux:badge size="sm" color="zinc">{{ count($apiModels) }}</flux:badge>
+                @endif
+            </div>
+        </button>
+    </div>
 
-                <flux:table.rows>
-                    @forelse ($keys as $k)
-                        <flux:table.row :key="$k->id">
-                            {{-- Nome --}}
-                            <flux:table.cell>
-                                <div class="font-medium text-zinc-900 dark:text-white flex items-center gap-2">
-                                    {{ $k->name }}
-                                    @if ($k->is_default)
-                                        <flux:badge size="sm" color="indigo" icon="star">Principal</flux:badge>
-                                    @endif
-                                </div>
-                                <div class="text-xs text-zinc-400">Prioridade: {{ $k->priority }}</div>
-                            </flux:table.cell>
+    {{-- TAB 1: CHAVES DE API --}}
+    @if ($tab === 'keys')
+        <flux:card class="overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <flux:heading size="lg">Chaves Cadastradas</flux:heading>
+                    <flux:subheading>Gerencie as credenciais e prioridades de rotação da API.</flux:subheading>
+                </div>
+            </div>
 
-                            {{-- Chave --}}
-                            <flux:table.cell>
-                                <code class="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-zinc-700 dark:text-zinc-300">
-                                    {{ $k->maskedKey() }}
-                                </code>
-                            </flux:table.cell>
+            <div class="overflow-x-auto w-full scrollbar-none">
+                <flux:table>
+                    <flux:table.columns>
+                        <flux:table.column>Identificação</flux:table.column>
+                        <flux:table.column>Chave Mascarada</flux:table.column>
+                        <flux:table.column>Papel</flux:table.column>
+                        <flux:table.column>Status</flux:table.column>
+                        <flux:table.column>Uso (Sucesso / Falha)</flux:table.column>
+                        <flux:table.column>Último Teste</flux:table.column>
+                        <flux:table.column class="text-right">Ações</flux:table.column>
+                    </flux:table.columns>
 
-                            {{-- Papel / Padrão --}}
-                            <flux:table.cell>
-                                @if ($k->is_default)
-                                    <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400">Principal (Rotação 1)</span>
-                                @else
-                                    <flux:button variant="ghost" size="sm" wire:click="setDefault({{ $k->id }})" title="Tornar chave principal">
-                                        Definir como Principal
-                                    </flux:button>
-                                @endif
-                            </flux:table.cell>
-
-                            {{-- Status --}}
-                            <flux:table.cell>
-                                @if (! $k->is_active)
-                                    <flux:badge size="sm" color="zinc">Inativa</flux:badge>
-                                @elseif ($k->status === 'rate_limited')
-                                    <div class="space-y-1">
-                                        <flux:badge size="sm" color="amber">Limite Atingido (429)</flux:badge>
-                                        @if ($k->rate_limited_until)
-                                            <div class="text-[10px] text-zinc-400">
-                                                Até {{ $k->rate_limited_until->format('H:i:s') }}
-                                            </div>
+                    <flux:table.rows>
+                        @forelse ($keys as $k)
+                            <flux:table.row :key="$k->id">
+                                {{-- Nome --}}
+                                <flux:table.cell>
+                                    <div class="font-medium text-zinc-900 dark:text-white flex items-center gap-2">
+                                        {{ $k->name }}
+                                        @if ($k->is_default)
+                                            <flux:badge size="sm" color="indigo" icon="star">Principal</flux:badge>
                                         @endif
                                     </div>
-                                @elseif ($k->status === 'invalid')
-                                    <flux:badge size="sm" color="red">Chave Inválida</flux:badge>
-                                @elseif ($k->status === 'error')
-                                    <flux:badge size="sm" color="red">Erro de Conexão</flux:badge>
-                                @else
-                                    <flux:badge size="sm" color="green">Ativa & Pronta</flux:badge>
-                                @endif
-                            </flux:table.cell>
+                                    <div class="text-xs text-zinc-400">Prioridade: {{ $k->priority }}</div>
+                                </flux:table.cell>
 
-                            {{-- Uso --}}
-                            <flux:table.cell>
-                                <div class="text-xs">
-                                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ $k->successful_requests }}</span>
-                                    <span class="text-zinc-400"> / </span>
-                                    <span class="text-red-600 dark:text-red-400">{{ $k->failed_requests }}</span>
-                                    <span class="text-zinc-400"> ({{ $k->total_requests }} total)</span>
-                                </div>
-                                @if ($k->last_used_at)
-                                    <div class="text-[10px] text-zinc-400">
-                                        Último uso: {{ $k->last_used_at->diffForHumans() }}
+                                {{-- Chave --}}
+                                <flux:table.cell>
+                                    <code class="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-zinc-700 dark:text-zinc-300">
+                                        {{ $k->maskedKey() }}
+                                    </code>
+                                </flux:table.cell>
+
+                                {{-- Papel / Padrão --}}
+                                <flux:table.cell>
+                                    @if ($k->is_default)
+                                        <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400">Principal (Rotação 1)</span>
+                                    @else
+                                        <flux:button variant="ghost" size="sm" wire:click="setDefault({{ $k->id }})" title="Tornar chave principal">
+                                            Definir como Principal
+                                        </flux:button>
+                                    @endif
+                                </flux:table.cell>
+
+                                {{-- Status --}}
+                                <flux:table.cell>
+                                    @if (! $k->is_active)
+                                        <flux:badge size="sm" color="zinc">Inativa</flux:badge>
+                                    @elseif ($k->status === 'rate_limited')
+                                        <div class="space-y-1">
+                                            <flux:badge size="sm" color="amber">Limite Atingido (429)</flux:badge>
+                                            @if ($k->rate_limited_until)
+                                                <div class="text-[10px] text-zinc-400">
+                                                    Até {{ $k->rate_limited_until->format('H:i:s') }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @elseif ($k->status === 'invalid')
+                                        <flux:badge size="sm" color="red">Chave Inválida</flux:badge>
+                                    @elseif ($k->status === 'error')
+                                        <flux:badge size="sm" color="red">Erro de Conexão</flux:badge>
+                                    @else
+                                        <flux:badge size="sm" color="green">Ativa & Pronta</flux:badge>
+                                    @endif
+                                </flux:table.cell>
+
+                                {{-- Uso --}}
+                                <flux:table.cell>
+                                    <div class="text-xs">
+                                        <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ $k->successful_requests }}</span>
+                                        <span class="text-zinc-400"> / </span>
+                                        <span class="text-red-600 dark:text-red-400">{{ $k->failed_requests }}</span>
+                                        <span class="text-zinc-400"> ({{ $k->total_requests }} total)</span>
                                     </div>
-                                @endif
-                            </flux:table.cell>
+                                    @if ($k->last_used_at)
+                                        <div class="text-[10px] text-zinc-400">
+                                            Último uso: {{ $k->last_used_at->diffForHumans() }}
+                                        </div>
+                                    @endif
+                                </flux:table.cell>
 
-                            {{-- Último Teste --}}
-                            <flux:table.cell>
-                                @if ($k->last_tested_at)
-                                    <span class="text-xs text-zinc-600 dark:text-zinc-400" title="{{ $k->last_tested_at->format('d/m/Y H:i:s') }}">
-                                        {{ $k->last_tested_at->diffForHumans() }}
-                                    </span>
-                                @else
-                                    <span class="text-xs text-zinc-400">Nunca testada</span>
-                                @endif
-                            </flux:table.cell>
+                                {{-- Último Teste --}}
+                                <flux:table.cell>
+                                    @if ($k->last_tested_at)
+                                        <span class="text-xs text-zinc-600 dark:text-zinc-400" title="{{ $k->last_tested_at->format('d/m/Y H:i:s') }}">
+                                            {{ $k->last_tested_at->diffForHumans() }}
+                                        </span>
+                                    @else
+                                        <span class="text-xs text-zinc-400">Nunca testada</span>
+                                    @endif
+                                </flux:table.cell>
 
-                            {{-- Ações --}}
-                            <flux:table.cell class="text-right">
-                                <div class="flex items-center justify-end gap-1">
-                                    {{-- Testar --}}
-                                    <flux:button
-                                        wire:click="testSingleKey({{ $k->id }})"
-                                        size="sm"
-                                        variant="ghost"
-                                        icon="sparkles"
-                                        title="Testar conexão desta chave"
-                                        wire:loading.attr="disabled"
-                                    />
+                                {{-- Ações --}}
+                                <flux:table.cell class="text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <flux:button
+                                            wire:click="testSingleKey({{ $k->id }})"
+                                            size="sm"
+                                            variant="ghost"
+                                            icon="sparkles"
+                                            title="Testar conexão desta chave"
+                                            wire:loading.attr="disabled"
+                                        />
 
-                                    {{-- Ativar / Desativar --}}
-                                    <flux:button
-                                        wire:click="toggleActive({{ $k->id }})"
-                                        size="sm"
-                                        variant="ghost"
-                                        icon="{{ $k->is_active ? 'eye-slash' : 'eye' }}"
-                                        title="{{ $k->is_active ? 'Desativar chave' : 'Ativar chave' }}"
-                                    />
+                                        <flux:button
+                                            wire:click="toggleActive({{ $k->id }})"
+                                            size="sm"
+                                            variant="ghost"
+                                            icon="{{ $k->is_active ? 'eye-slash' : 'eye' }}"
+                                            title="{{ $k->is_active ? 'Desativar chave' : 'Ativar chave' }}"
+                                        />
 
-                                    {{-- Editar --}}
-                                    <flux:button
-                                        wire:click="editKey({{ $k->id }})"
-                                        size="sm"
-                                        variant="ghost"
-                                        icon="pencil-square"
-                                        title="Editar informações da chave"
-                                    />
+                                        <flux:button
+                                            wire:click="editKey({{ $k->id }})"
+                                            size="sm"
+                                            variant="ghost"
+                                            icon="pencil-square"
+                                            title="Editar informações da chave"
+                                        />
 
-                                    {{-- Excluir --}}
-                                    <flux:button
-                                        wire:click="deleteKey({{ $k->id }})"
-                                        wire:confirm="Tem certeza que deseja remover esta chave do Gemini? O sistema usará as demais chaves ativas."
-                                        size="sm"
-                                        variant="ghost"
-                                        icon="trash"
-                                        color="danger"
-                                        title="Excluir chave"
-                                    />
-                                </div>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="7" class="text-center py-10">
-                                <div class="flex flex-col items-center justify-center space-y-3">
-                                    <div class="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-500">
-                                        <flux:icon name="key" class="size-6" />
+                                        <flux:button
+                                            wire:click="deleteKey({{ $k->id }})"
+                                            wire:confirm="Tem certeza que deseja remover esta chave do Gemini? O sistema usará as demais chaves ativas."
+                                            size="sm"
+                                            variant="ghost"
+                                            icon="trash"
+                                            color="danger"
+                                            title="Excluir chave"
+                                        />
                                     </div>
-                                    <div class="text-sm font-medium text-zinc-900 dark:text-white">
-                                        Nenhuma chave de API do Gemini cadastrada no banco de dados.
+                                </flux:table.cell>
+                            </flux:table.row>
+                        @empty
+                            <flux:table.row>
+                                <flux:table.cell colspan="7" class="text-center py-10">
+                                    <div class="flex flex-col items-center justify-center space-y-3">
+                                        <div class="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-500">
+                                            <flux:icon name="key" class="size-6" />
+                                        </div>
+                                        <div class="text-sm font-medium text-zinc-900 dark:text-white">
+                                            Nenhuma chave de API do Gemini cadastrada no banco de dados.
+                                        </div>
+                                        <div class="text-xs text-zinc-500 max-w-md">
+                                            Cadastre sua chave do Google AI Studio para que o avali.ai possa gerar e corrigir provas automaticamente sem depender do arquivo .env.
+                                        </div>
+                                        <flux:button variant="primary" size="sm" icon="plus" wire:click="createKey">
+                                            Cadastrar Primeira Chave
+                                        </flux:button>
                                     </div>
-                                    <div class="text-xs text-zinc-500 max-w-md">
-                                        Cadastre sua chave do Google AI Studio para que o avali.ai possa gerar e corrigir provas automaticamente sem depender do arquivo .env.
-                                    </div>
-                                    <flux:button variant="primary" size="sm" icon="plus" wire:click="createKey">
-                                        Cadastrar Primeira Chave
-                                    </flux:button>
-                                </div>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
+                                </flux:table.cell>
+                            </flux:table.row>
+                        @endforelse
+                    </flux:table.rows>
+                </flux:table>
+            </div>
+        </flux:card>
+    @endif
+
+    {{-- TAB 2: EXPLORADOR DE MODELOS DA API --}}
+    @if ($tab === 'models')
+        <div class="space-y-6">
+            <flux:card>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <flux:heading size="lg">Catálogo em Tempo Real do Google Gemini</flux:heading>
+                        <flux:subheading>
+                            Descubra quais versões de modelos (ex: Flash, Pro) estão liberadas para a sua conta do Google AI Studio e configure a ordem de fallback do sistema.
+                        </flux:subheading>
+                    </div>
+
+                    <flux:button
+                        variant="primary"
+                        icon="arrow-path"
+                        wire:click="loadApiModels"
+                        wire:loading.attr="disabled"
+                    >
+                        <span wire:loading.remove wire:target="loadApiModels">Consultar Modelos da Conta</span>
+                        <span wire:loading wire:target="loadApiModels">Consultando API do Google...</span>
+                    </flux:button>
+                </div>
+
+                {{-- Explicação de versões e descontinuações --}}
+                <div class="mt-4 p-4 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200 space-y-1">
+                    <div class="font-semibold flex items-center gap-1.5">
+                        <flux:icon name="information-circle" class="size-4 text-indigo-600 dark:text-indigo-400" />
+                        <span>Por que versões como gemini-2.5 ou gemini-3.5 podem falhar?</span>
+                    </div>
+                    <p class="text-indigo-700 dark:text-indigo-300">
+                        O Google AI frequentemente descontinua versões antigas, lança versões Preview ou exige cotas específicas por região/tier. Ao consultar o catálogo abaixo, você vê <strong>exatamente os identificadores oficiais</strong> liberados para a sua chave e pode definir qual modelo o sistema deve usar como principal.
+                    </p>
+                </div>
+            </flux:card>
+
+            @if (count($apiModels) > 0)
+                <flux:card class="overflow-hidden">
+                    <div class="overflow-x-auto w-full scrollbar-none">
+                        <flux:table>
+                            <flux:table.columns>
+                                <flux:table.column>Identificador do Modelo</flux:table.column>
+                                <flux:table.column>Nome de Exibição / Descrição</flux:table.column>
+                                <flux:table.column>Limites de Tokens</flux:table.column>
+                                <flux:table.column>Configuração no Sistema</flux:table.column>
+                                <flux:table.column class="text-right">Ações</flux:table.column>
+                            </flux:table.columns>
+
+                            <flux:table.rows>
+                                @foreach ($apiModels as $m)
+                                    @php
+                                        $isDefault = ($m['name'] === $defaultModel);
+                                        $inFallback = in_array($m['name'], $fallbackModels);
+                                    @endphp
+                                    <flux:table.row :key="$m['name']">
+                                        {{-- Identificador --}}
+                                        <flux:table.cell>
+                                            <div class="font-mono text-xs font-bold text-zinc-900 dark:text-white">
+                                                {{ $m['name'] }}
+                                            </div>
+                                            <div class="text-[10px] text-zinc-400">
+                                                {{ $m['full_name'] }}
+                                            </div>
+                                        </flux:table.cell>
+
+                                        {{-- Nome / Descrição --}}
+                                        <flux:table.cell>
+                                            <div class="font-medium text-xs text-zinc-900 dark:text-white">
+                                                {{ $m['display_name'] }}
+                                            </div>
+                                            @if (! empty($m['description']))
+                                                <div class="text-[11px] text-zinc-500 max-w-md truncate" title="{{ $m['description'] }}">
+                                                    {{ $m['description'] }}
+                                                </div>
+                                            @endif
+                                        </flux:table.cell>
+
+                                        {{-- Limites de Tokens --}}
+                                        <flux:table.cell>
+                                            <div class="text-xs space-y-0.5">
+                                                @if ($m['input_token_limit'])
+                                                    <div class="text-zinc-600 dark:text-zinc-300">
+                                                        <span class="text-zinc-400">Entrada:</span> {{ number_format($m['input_token_limit']) }}
+                                                    </div>
+                                                @endif
+                                                @if ($m['output_token_limit'])
+                                                    <div class="text-zinc-600 dark:text-zinc-300">
+                                                        <span class="text-zinc-400">Saída:</span> {{ number_format($m['output_token_limit']) }}
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </flux:table.cell>
+
+                                        {{-- Configuração no Sistema --}}
+                                        <flux:table.cell>
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                @if ($isDefault)
+                                                    <flux:badge size="sm" color="indigo" icon="star">Principal</flux:badge>
+                                                @endif
+
+                                                @if ($inFallback && ! $isDefault)
+                                                    <flux:badge size="sm" color="emerald">Fallback</flux:badge>
+                                                @endif
+
+                                                @if (! $inFallback && ! $isDefault)
+                                                    <span class="text-[11px] text-zinc-400">Não utilizado</span>
+                                                @endif
+                                            </div>
+                                        </flux:table.cell>
+
+                                        {{-- Ações --}}
+                                        <flux:table.cell class="text-right">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                {{-- Testar Modelo --}}
+                                                <flux:button
+                                                    wire:click="testSpecificModel('{{ $m['name'] }}')"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    icon="sparkles"
+                                                    title="Testar resposta deste modelo em tempo real"
+                                                    wire:loading.attr="disabled"
+                                                >
+                                                    Testar
+                                                </flux:button>
+
+                                                {{-- Definir como Padrão --}}
+                                                @if (! $isDefault)
+                                                    <flux:button
+                                                        wire:click="setAsDefaultModel('{{ $m['name'] }}')"
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        title="Definir este modelo como padrão do sistema"
+                                                    >
+                                                        Tornar Padrão
+                                                    </flux:button>
+                                                @endif
+
+                                                {{-- Adicionar / Remover do Fallback --}}
+                                                <flux:button
+                                                    wire:click="toggleFallback('{{ $m['name'] }}')"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    title="{{ $inFallback ? 'Remover da fila de fallback' : 'Adicionar à fila de fallback' }}"
+                                                    icon="{{ $inFallback ? 'minus-circle' : 'plus-circle' }}"
+                                                />
+                                            </div>
+                                        </flux:table.cell>
+                                    </flux:table.row>
+                                @endforeach
+                            </flux:table.rows>
+                        </flux:table>
+                    </div>
+                </flux:card>
+            @elseif (! $isLoadingModels)
+                <flux:card class="text-center py-12">
+                    <div class="flex flex-col items-center justify-center space-y-3">
+                        <div class="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-500">
+                            <flux:icon name="cpu-chip" class="size-8" />
+                        </div>
+                        <div class="text-sm font-semibold text-zinc-900 dark:text-white">
+                            Nenhum modelo carregado ainda
+                        </div>
+                        <div class="text-xs text-zinc-500 max-w-md">
+                            Clique no botão abaixo para que o avali.ai consulte a API do Google usando a sua chave ativa e liste todos os modelos disponíveis para a sua conta.
+                        </div>
+                        <flux:button variant="primary" size="sm" icon="arrow-path" wire:click="loadApiModels">
+                            Carregar Modelos da API
+                        </flux:button>
+                    </div>
+                </flux:card>
+            @endif
         </div>
-    </flux:card>
+    @endif
 
     {{-- Modal para Cadastrar / Editar Chave --}}
     <flux:modal wire:model="showModal" class="md:w-[550px]">
@@ -597,7 +870,7 @@ new #[Layout('layouts.main')] class extends Component {
         </div>
     </flux:modal>
 
-    {{-- Modal com Resultado do Teste de Conexão --}}
+    {{-- Modal com Resultado do Teste de Chave --}}
     <flux:modal wire:model="showTestModal" class="md:w-[500px]">
         <div class="space-y-5">
             <div class="flex items-center gap-3">
@@ -649,6 +922,77 @@ new #[Layout('layouts.main')] class extends Component {
             </div>
 
             <div class="flex justify-end pt-3">
+                <flux:modal.close>
+                    <flux:button variant="primary">Fechar</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    {{-- Modal com Resultado do Teste de Modelo Específico --}}
+    <flux:modal wire:model="showModelTestModal" class="md:w-[500px]">
+        <div class="space-y-5">
+            <div class="flex items-center gap-3">
+                @if ($modelTestOutput['success'] ?? false)
+                    <div class="p-2.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
+                        <flux:icon name="check-circle" class="size-6" />
+                    </div>
+                    <div>
+                        <flux:heading size="lg">Modelo Operacional</flux:heading>
+                        <flux:subheading>{{ $modelTestOutput['model'] ?? 'Modelo' }}</flux:subheading>
+                    </div>
+                @else
+                    <div class="p-2.5 rounded-full bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400">
+                        <flux:icon name="x-circle" class="size-6" />
+                    </div>
+                    <div>
+                        <flux:heading size="lg">Falha no Modelo</flux:heading>
+                        <flux:subheading>{{ $modelTestOutput['model'] ?? 'Modelo' }}</flux:subheading>
+                    </div>
+                @endif
+            </div>
+
+            <flux:separator />
+
+            <div class="space-y-3 text-sm">
+                <div>
+                    <span class="font-medium text-zinc-900 dark:text-white">Status da Resposta:</span>
+                    <p class="text-zinc-600 dark:text-zinc-300 mt-0.5">{{ $modelTestOutput['message'] ?? '' }}</p>
+                </div>
+
+                @if (isset($modelTestOutput['latency_ms']))
+                    <div class="flex items-center gap-2 text-xs text-zinc-500">
+                        <flux:icon name="clock" class="size-4" />
+                        <span>Latência de resposta: <strong class="text-zinc-700 dark:text-zinc-200">{{ $modelTestOutput['latency_ms'] }} ms</strong></span>
+                    </div>
+                @endif
+
+                @if (! empty($modelTestOutput['response_text']))
+                    <div class="p-3 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg text-xs font-mono text-zinc-700 dark:text-zinc-300">
+                        Retorno do Modelo: "{{ $modelTestOutput['response_text'] }}"
+                    </div>
+                @endif
+
+                @if (! empty($modelTestOutput['error']))
+                    <div class="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg text-xs text-red-700 dark:text-red-300 font-mono break-all">
+                        {{ $modelTestOutput['error'] }}
+                    </div>
+                @endif
+            </div>
+
+            <div class="flex justify-between items-center pt-3">
+                @if (($modelTestOutput['success'] ?? false) && isset($modelTestOutput['model']) && $modelTestOutput['model'] !== $defaultModel)
+                    <flux:button
+                        variant="outline"
+                        size="sm"
+                        wire:click="setAsDefaultModel('{{ $modelTestOutput['model'] }}')"
+                    >
+                        Tornar este Modelo Principal
+                    </flux:button>
+                @else
+                    <div></div>
+                @endif
+
                 <flux:modal.close>
                     <flux:button variant="primary">Fechar</flux:button>
                 </flux:modal.close>

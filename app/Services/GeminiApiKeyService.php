@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\GeminiApiKey;
+use App\Models\SystemSetting;
 use Gemini\Client;
 use Gemini\Contracts\ClientContract;
 use Gemini\Laravel\Facades\Gemini;
@@ -254,5 +255,138 @@ class GeminiApiKeyService
             'priority' => 0,
             'status' => 'active',
         ]);
+    }
+
+    /**
+     * Consulta a API do Google para descobrir todos os modelos liberados para a chave informada.
+     *
+     * @return array<int, array{name: string, full_name: string, display_name: string, description: string, input_token_limit: ?int, output_token_limit: ?int, methods: array<string>}>
+     */
+    public function getAvailableModels(?GeminiApiKey $key = null): array
+    {
+        $rawKey = $key ? $key->key : $this->getActiveKeyString();
+        if (empty($rawKey)) {
+            return [];
+        }
+
+        try {
+            $client = $this->createClient($rawKey);
+            $response = $client->models()->list();
+            $models = [];
+
+            foreach ($response->models ?? [] as $model) {
+                $methods = $model->supportedGenerationMethods ?? [];
+                if (in_array('generateContent', $methods)) {
+                    $cleanName = str_replace('models/', '', $model->name);
+                    $models[] = [
+                        'name' => $cleanName,
+                        'full_name' => $model->name,
+                        'display_name' => $model->displayName ?? $cleanName,
+                        'description' => $model->description ?? '',
+                        'input_token_limit' => $model->inputTokenLimit ?? null,
+                        'output_token_limit' => $model->outputTokenLimit ?? null,
+                        'methods' => $methods,
+                    ];
+                }
+            }
+
+            usort($models, fn ($a, $b) => strcmp($a['name'], $b['name']));
+
+            return $models;
+        } catch (Throwable $e) {
+            Log::error('Erro ao buscar lista de modelos do Gemini: '.$e->getMessage());
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Testa um modelo específico enviando uma requisição simples e medindo a latência.
+     *
+     * @return array{success: bool, model: string, latency_ms: int, message: string, response_text?: string, error?: string}
+     */
+    public function testSpecificModel(string $modelName, ?GeminiApiKey $key = null): array
+    {
+        $rawKey = $key ? $key->key : $this->getActiveKeyString();
+        if (empty($rawKey)) {
+            return [
+                'success' => false,
+                'model' => $modelName,
+                'latency_ms' => 0,
+                'message' => 'Nenhuma chave ativa para testar este modelo.',
+            ];
+        }
+
+        $startTime = microtime(true);
+        try {
+            $client = $this->createClient($rawKey);
+            $response = $client->generativeModel($modelName)->generateContent('Responda apenas a palavra OK.');
+            $durationMs = (int) round((microtime(true) - $startTime) * 1000);
+
+            return [
+                'success' => true,
+                'model' => $modelName,
+                'latency_ms' => $durationMs,
+                'message' => "Modelo operacional! Resposta recebida em {$durationMs}ms.",
+                'response_text' => trim($response->text()),
+            ];
+        } catch (Throwable $e) {
+            $durationMs = (int) round((microtime(true) - $startTime) * 1000);
+
+            return [
+                'success' => false,
+                'model' => $modelName,
+                'latency_ms' => $durationMs,
+                'message' => 'Falha no teste: '.$e->getMessage(),
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Retorna o modelo padrão configurado no sistema.
+     */
+    public function getDefaultModel(): string
+    {
+        return (string) (SystemSetting::get('gemini_default_model') ?: config('gemini.default_model', 'gemini-3.8-flash'));
+    }
+
+    /**
+     * Salva o modelo padrão do sistema.
+     */
+    public function setDefaultModel(string $model): void
+    {
+        SystemSetting::set('gemini_default_model', $model);
+
+        $fallbacks = $this->getFallbackModels();
+        if (! in_array($model, $fallbacks)) {
+            array_unshift($fallbacks, $model);
+            $this->setFallbackModels($fallbacks);
+        }
+    }
+
+    /**
+     * Retorna a lista de modelos de fallback configurada no sistema.
+     *
+     * @return array<int, string>
+     */
+    public function getFallbackModels(): array
+    {
+        $stored = SystemSetting::get('gemini_fallback_models');
+        if (is_array($stored) && ! empty($stored)) {
+            return $stored;
+        }
+
+        return config('gemini.fallback_models', ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite']);
+    }
+
+    /**
+     * Salva a lista de modelos de fallback do sistema.
+     *
+     * @param  array<int, string>  $models
+     */
+    public function setFallbackModels(array $models): void
+    {
+        SystemSetting::set('gemini_fallback_models', array_values(array_unique(array_filter($models))));
     }
 }

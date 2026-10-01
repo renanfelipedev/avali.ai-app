@@ -63,37 +63,37 @@ new class extends Component
         }
 
         $keyService->configureContainerClient();
-        $models = config('gemini.fallback_models', ['gemini-2.5-flash', 'gemini-2.5-flash-lite']);
+        $models = $keyService->getFallbackModels();
+        $defaultModel = $keyService->getDefaultModel();
+
+        if (! in_array($defaultModel, $models)) {
+            array_unshift($models, $defaultModel);
+        }
+
+        $lastError = null;
 
         foreach ($models as $model) {
             try {
                 // Teste minimalista de geração com cada modelo da lista de fallback
                 Gemini::generativeModel($model)->generateContent('ping');
+
                 return [
                     'online' => true,
                     'message' => 'Online',
                     'model' => $model,
                 ];
             } catch (\Exception $e) {
-                $err = strtolower($e->getMessage());
-                // Se o erro não for de cota, interrompe e mostra o erro do modelo atual
-                if (!str_contains($err, 'quota') && !str_contains($err, 'limit')) {
-                    return [
-                        'online' => false,
-                        'message' => 'Erro: ' . $model,
-                        'model' => $model,
-                        'error' => $e->getMessage(),
-                    ];
-                }
-                // Se for cota, tenta o próximo modelo...
+                $lastError = $e->getMessage();
+                // Se falhar (seja por cota, modelo descontinuado ou alta demanda), tenta o próximo modelo da lista
                 continue;
             }
         }
 
         return [
             'online' => false,
-            'message' => 'Cota Esgotada (Todos)',
+            'message' => 'Indisponível',
             'model' => $models[0] ?? 'N/A',
+            'error' => $lastError ?? 'Todos os modelos falharam.',
         ];
     }
 };

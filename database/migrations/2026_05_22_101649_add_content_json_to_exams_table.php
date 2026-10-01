@@ -2,7 +2,9 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 return new class extends Migration
 {
@@ -20,15 +22,15 @@ return new class extends Migration
         });
 
         // Migrate existing JSON files to the database
-        $exams = \Illuminate\Support\Facades\DB::table('exams')->get();
+        $exams = DB::table('exams')->get();
         foreach ($exams as $exam) {
-            if ($exam->mime_type === 'application/json' && !empty($exam->file_path)) {
-                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($exam->file_path)) {
-                    $rawContent = \Illuminate\Support\Facades\Storage::disk('public')->get($exam->file_path);
+            if ($exam->mime_type === 'application/json' && ! empty($exam->file_path)) {
+                if (Storage::disk('public')->exists($exam->file_path)) {
+                    $rawContent = Storage::disk('public')->get($exam->file_path);
                     $json = json_decode($rawContent, true);
                     if (is_array($json)) {
-                        \Illuminate\Support\Facades\DB::table('exams')->where('id', $exam->id)->update([
-                            'content_json' => json_encode($json)
+                        DB::table('exams')->where('id', $exam->id)->update([
+                            'content_json' => json_encode($json),
                         ]);
                     }
                 }
@@ -43,7 +45,7 @@ return new class extends Migration
     {
         Schema::table('exams', function (Blueprint $table) {
             $table->dropColumn('content_json');
-            // Reverting to non-nullable might fail if there are null values, 
+            // Reverting to non-nullable might fail if there are null values,
             // but we add it for the sake of reversing the migration schema
             $table->string('file_path')->nullable(false)->change();
             $table->string('original_name')->nullable(false)->change();

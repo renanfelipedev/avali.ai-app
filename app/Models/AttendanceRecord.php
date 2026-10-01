@@ -19,6 +19,7 @@ class AttendanceRecord extends Model
             'distance_meters' => 'integer',
         ];
     }
+
     public function session(): BelongsTo
     {
         return $this->belongsTo(AttendanceSession::class, 'attendance_session_id');

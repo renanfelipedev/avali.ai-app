@@ -33,7 +33,8 @@ class TestGemini extends Command
             $response = Gemini::models()->list();
             $availableModels = $response->models;
         } catch (Throwable $e) {
-            $this->error("Falha ao buscar a lista de modelos: " . $e->getMessage());
+            $this->error('Falha ao buscar a lista de modelos: '.$e->getMessage());
+
             return;
         }
 
@@ -47,10 +48,11 @@ class TestGemini extends Command
 
         if (empty($models)) {
             $this->error('Nenhum modelo que suporta geração de conteúdo foi encontrado na API.');
+
             return;
         }
 
-        $this->info(count($models) . " modelos encontrados que suportam generateContent.");
+        $this->info(count($models).' modelos encontrados que suportam generateContent.');
 
         $prompt = 'Responda apenas com a palavra "Sucesso" para confirmar o funcionamento.';
         $this->line("\nEnviando questionamento simples: \"{$prompt}\"\n");
@@ -59,7 +61,7 @@ class TestGemini extends Command
 
         foreach ($models as $modelName) {
             $this->line("Testando modelo: <comment>{$modelName}</comment>...");
-            
+
             try {
                 $response = Gemini::generativeModel($modelName)->generateContent($prompt);
                 $text = trim($response->text());
@@ -69,11 +71,11 @@ class TestGemini extends Command
                 $sucesso = true;
                 sleep(1);
             } catch (Throwable $e) {
-                $this->error("❌ Falha no modelo {$modelName}: " . $e->getMessage());
+                $this->error("❌ Falha no modelo {$modelName}: ".$e->getMessage());
             }
         }
 
-        if (!$sucesso) {
+        if (! $sucesso) {
             $this->error('Todos os modelos testados falharam ao tentar retornar uma resposta.');
         }
     }

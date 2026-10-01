@@ -52,26 +52,37 @@ new class extends Component
 
     private function performCheck()
     {
-        $models = config('gemini.fallback_models');
-        
+        $keyService = app(\App\Services\GeminiApiKeyService::class);
+        if (! $keyService->hasValidKey()) {
+            return [
+                'online' => false,
+                'message' => 'Sem chave',
+                'model' => 'N/A',
+                'error' => 'Nenhuma chave de API configurada no sistema. Acesse Chaves Gemini.',
+            ];
+        }
+
+        $keyService->configureContainerClient();
+        $models = config('gemini.fallback_models', ['gemini-2.5-flash', 'gemini-2.5-flash-lite']);
+
         foreach ($models as $model) {
             try {
                 // Teste minimalista de geração com cada modelo da lista de fallback
                 Gemini::generativeModel($model)->generateContent('ping');
                 return [
-                    'online' => true, 
-                    'message' => 'Online', 
-                    'model' => $model
+                    'online' => true,
+                    'message' => 'Online',
+                    'model' => $model,
                 ];
             } catch (\Exception $e) {
                 $err = strtolower($e->getMessage());
                 // Se o erro não for de cota, interrompe e mostra o erro do modelo atual
                 if (!str_contains($err, 'quota') && !str_contains($err, 'limit')) {
                     return [
-                        'online' => false, 
-                        'message' => 'Erro: ' . $model, 
+                        'online' => false,
+                        'message' => 'Erro: ' . $model,
                         'model' => $model,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
                 // Se for cota, tenta o próximo modelo...
@@ -80,9 +91,9 @@ new class extends Component
         }
 
         return [
-            'online' => false, 
-            'message' => 'Cota Esgotada (Todos)', 
-            'model' => $models[0] ?? 'N/A'
+            'online' => false,
+            'message' => 'Cota Esgotada (Todos)',
+            'model' => $models[0] ?? 'N/A',
         ];
     }
 };

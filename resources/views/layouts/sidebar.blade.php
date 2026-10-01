@@ -29,6 +29,7 @@
                             {{ $activeTasks }}</flux:badge>
                     @endif
                 </flux:sidebar.item>
+                <flux:sidebar.item icon="key" href="{{ route('gemini-keys.index') }}">Chaves Gemini</flux:sidebar.item>
                 <flux:sidebar.item icon="heart" href="{{ route('health') }}">Saúde do Sistema</flux:sidebar.item>
 
             </flux:sidebar.group>

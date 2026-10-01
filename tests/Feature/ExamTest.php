@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Exam;
+use App\Models\ExamGenerationRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -44,10 +45,10 @@ test('authenticated user can view exam detail', function () {
                     'a' => 'Opção A',
                     'b' => 'Opção B',
                 ],
-                'answer' => 'a'
-            ]
+                'answer' => 'a',
+            ],
         ],
-        'discursive_questions' => []
+        'discursive_questions' => [],
     ]));
 
     $response = $this->actingAs($user)->get(route('exams.show', $exam));
@@ -100,16 +101,16 @@ test('teacher can download exam as pdf file', function () {
                     'a' => 'Alt A',
                     'b' => 'Alt B',
                 ],
-                'answer' => 'a'
-            ]
+                'answer' => 'a',
+            ],
         ],
         'discursive_questions' => [
             [
                 'number' => 2,
                 'text' => 'Pergunta Discursiva',
-                'answer_key' => 'Esperado X'
-            ]
-        ]
+                'answer_key' => 'Esperado X',
+            ],
+        ],
     ]);
 
     Storage::disk('public')->put($exam->file_path, $examJsonContent);
@@ -125,7 +126,7 @@ test('notifications center alerts user when active task completes', function () 
     $user = User::factory()->create();
 
     // Create an active exam generation task
-    $task = \App\Models\ExamGenerationRequest::create([
+    $task = ExamGenerationRequest::create([
         'user_id' => $user->id,
         'topics' => ['Tema Teste'],
         'questions_count' => 5,

@@ -81,8 +81,8 @@ new #[Layout('layouts.main')] class extends Component {
     private function checkGemini()
     {
         try {
-            $apiKey = config('gemini.api_key');
-            if (!$apiKey) {
+            $keyService = app(\App\Services\GeminiApiKeyService::class);
+            if (! $keyService->hasValidKey()) {
                 return 'unconfigured';
             }
             $response = Http::timeout(3)->get('https://generativelanguage.googleapis.com');

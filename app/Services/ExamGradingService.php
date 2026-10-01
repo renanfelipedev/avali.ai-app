@@ -273,9 +273,9 @@ class ExamGradingService
 
     private function verifyAiAccess(): void
     {
-        $apiKey = config('gemini.api_key');
-        if (empty($apiKey)) {
-            throw new \Exception('Chave de API do Gemini não configurada. Verifique o arquivo .env');
+        $keyService = app(GeminiApiKeyService::class);
+        if (! $keyService->hasValidKey()) {
+            throw new \Exception('Chave de API do Gemini não configurada no sistema. Acesse o menu de Chaves Gemini para cadastrar uma chave.');
         }
     }
 
@@ -286,8 +286,8 @@ class ExamGradingService
         $hasExamFile = ! empty($evaluation->exam_file_path);
 
         $viewName = "prompts.grading.{$evaluation->type}";
-        if (!view()->exists($viewName)) {
-            $viewName = "prompts.grading.exam"; // fallback
+        if (! view()->exists($viewName)) {
+            $viewName = 'prompts.grading.exam'; // fallback
         }
 
         return view($viewName, [

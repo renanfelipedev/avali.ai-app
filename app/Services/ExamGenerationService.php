@@ -6,10 +6,11 @@ use App\Models\AiLog;
 use App\Models\Exam;
 use App\Models\ExamGenerationRequest;
 use Gemini\Data\Blob;
-use Gemini\Enums\MimeType;
-use Gemini\Laravel\Facades\Gemini;
+use Gemini\Data\GenerationConfig;
 use Gemini\Data\Schema;
-use Gemini\Enums\DataType;
+use Gemini\Enums\MimeType;
+use Gemini\Enums\ResponseMimeType;
+use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -61,8 +62,8 @@ class ExamGenerationService
             }
 
             // Call Gemini via Fallback Service com configuração JSON (sem schema rigoroso para evitar alucinação em modelos menores)
-            $generationConfig = new \Gemini\Data\GenerationConfig(
-                responseMimeType: \Gemini\Enums\ResponseMimeType::APPLICATION_JSON
+            $generationConfig = new GenerationConfig(
+                responseMimeType: ResponseMimeType::APPLICATION_JSON
             );
             $response = $this->aiService->generateContent($parts, null, $generationConfig);
             $generatedText = trim($response->text());
@@ -81,7 +82,7 @@ class ExamGenerationService
                 // Tentar limpar possíveis sujeiras que quebram o JSON (ex: trailing commas, unescaped newlines)
                 $cleanJson = $this->sanitizeJsonString($generatedText);
                 $examData = json_decode($cleanJson, true);
-                
+
                 if (json_last_error() === JSON_ERROR_NONE) {
                     $generatedText = $cleanJson;
                 } else {
@@ -90,7 +91,7 @@ class ExamGenerationService
             }
 
             // Validação estrutural básica
-            if (!isset($examData['questions']) || !is_array($examData['questions'])) {
+            if (! isset($examData['questions']) || ! is_array($examData['questions'])) {
                 throw new \Exception('O JSON retornado não contém o array de questões esperado.');
             }
 
@@ -120,13 +121,13 @@ class ExamGenerationService
         } catch (Throwable $e) {
             $request->update([
                 'status' => 'error',
-                'error_message' => 'Erro na geração: ' . $e->getMessage(),
+                'error_message' => 'Erro na geração: '.$e->getMessage(),
             ]);
 
             $errorDetails = sprintf(
-                "❌ Falha na Geração da Prova\n\n" .
-                "📝 Motivo: %s\n" .
-                "📁 Origem: %s (Linha: %d)\n\n" .
+                "❌ Falha na Geração da Prova\n\n".
+                "📝 Motivo: %s\n".
+                "📁 Origem: %s (Linha: %d)\n\n".
                 "🔍 Trace Resumido:\n%s",
                 $e->getMessage(),
                 basename($e->getFile()),
@@ -171,7 +172,7 @@ class ExamGenerationService
     {
         // Remove markdown tags (```json ... ```)
         $text = preg_replace('/```(?:json)?/i', '', $text);
-        
+
         // Encontra o primeiro { e o último }
         $start = strpos($text, '{');
         $end = strrpos($text, '}');
@@ -190,12 +191,12 @@ class ExamGenerationService
     {
         // Remove trailing commas (vírgulas sobrando antes de fechar chaves/colchetes)
         $json = preg_replace('/,\s*([\}\]])/', '$1', $json);
-        
+
         // Substitui caracteres de controle literais (como quebras de linha não escapadas dentro de strings) por espaço.
         // O JSON parser padrão falha se houver quebras de linha reais dentro de valores string.
         // Isso também compacta o JSON em uma única linha, o que não afeta a validade estrutural.
         $json = preg_replace('/[\x00-\x1F]+/', ' ', $json);
-        
+
         return trim($json);
     }
 }

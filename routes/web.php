@@ -4,6 +4,8 @@ use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\ExamPdfController;
+use App\Http\Controllers\ExamWordController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +34,10 @@ Route::middleware('auth')->group(function () {
         ->name('users.index')
         ->middleware('can:admin');
 
+    Route::livewire('/gemini-keys', 'pages::gemini-keys.index')
+        ->name('gemini-keys.index')
+        ->middleware('can:admin');
+
     // Módulo de Gestão de Turmas e Alunos
     Route::livewire('/classrooms', 'pages::classrooms.index')->name('classrooms.index');
     Route::livewire('/classrooms/{classroom}', 'pages::classrooms.show')->name('classrooms.show');
@@ -42,8 +48,8 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/exams/settings', 'pages::exams.settings')->name('exams.settings');
     Route::livewire('/exams/create', 'pages::exams.create')->name('exams.create');
     Route::livewire('/exams/{exam}', 'pages::exams.show')->name('exams.show');
-    Route::get('/exams/{exam}/pdf', [\App\Http\Controllers\ExamPdfController::class, 'download'])->name('exams.pdf');
-    Route::get('/exams/{exam}/word', [\App\Http\Controllers\ExamWordController::class, 'download'])->name('exams.word');
+    Route::get('/exams/{exam}/pdf', [ExamPdfController::class, 'download'])->name('exams.pdf');
+    Route::get('/exams/{exam}/word', [ExamWordController::class, 'download'])->name('exams.word');
 
     // Logs da IA
     Route::livewire('/ai-logs', 'pages::ai-logs.index')->name('ai-logs.index');

@@ -92,8 +92,13 @@
     </div>
 </div>
 
-@if (config('services.recaptcha.site_key'))
-    <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
+@php
+    $recaptchaEnabled = \App\Models\SystemSetting::getBool('recaptcha_enabled', true);
+    $recaptchaSiteKey = \App\Models\SystemSetting::get('recaptcha_site_key', config('services.recaptcha.site_key'));
+@endphp
+
+@if ($recaptchaEnabled && $recaptchaSiteKey)
+    <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptchaSiteKey }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const form = document.getElementById('register-form');
@@ -101,7 +106,7 @@
 
             form.addEventListener('submit', function (event) {
                 const tokenInput = document.getElementById('g-recaptcha-response');
-                const siteKey = "{{ config('services.recaptcha.site_key') }}";
+                const siteKey = "{{ $recaptchaSiteKey }}";
 
                 // Se já possui token preenchido (ou sem chave), envia diretamente
                 if (!siteKey || (tokenInput && tokenInput.value)) {

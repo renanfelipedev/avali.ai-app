@@ -15,6 +15,19 @@
 
             <x-flash />
 
+            @php
+                $maintenanceBanner = \App\Models\SystemSetting::getBool('maintenance_banner_enabled', false)
+                    ? \App\Models\SystemSetting::get('maintenance_banner_message')
+                    : null;
+            @endphp
+
+            @if ($maintenanceBanner)
+                <flux:callout variant="warning" icon="exclamation-triangle" class="mb-6">
+                    <flux:callout.text>{{ $maintenanceBanner }}</flux:callout.text>
+                </flux:callout>
+            @endif
+
+
             @yield('content')
             {{ $slot ?? '' }}
         </flux:main>

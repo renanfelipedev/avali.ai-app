@@ -40,6 +40,10 @@ Route::middleware('auth')->group(function () {
         ->name('gemini-keys.index')
         ->middleware('can:admin');
 
+    Route::livewire('/settings', 'pages::settings.index')
+        ->name('settings.index')
+        ->middleware('can:admin');
+
     // Módulo de Gestão de Turmas e Alunos
     Route::livewire('/classrooms', 'pages::classrooms.index')->name('classrooms.index');
     Route::livewire('/classrooms/{classroom}', 'pages::classrooms.show')->name('classrooms.show');

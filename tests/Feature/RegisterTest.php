@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\SystemSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -101,4 +102,41 @@ test('honeypot silently drops bot registration without creating user', function 
     $response->assertSessionHas('status');
 
     $this->assertDatabaseMissing('users', ['email' => 'honeypot-bot@example.com']);
+});
+
+test('user can register without recaptcha token if recaptcha is disabled via system settings', function () {
+    SystemSetting::set('recaptcha_enabled', false);
+
+    $response = $this->post(route('cadastro'), [
+        'name' => 'Usuário Sem Recaptcha',
+        'email' => 'sem-recaptcha@example.com',
+        'password' => 'secret123',
+        'password_confirmation' => 'secret123',
+    ]);
+
+    $response->assertRedirect(route('login'));
+    $response->assertSessionHas('status');
+
+    $this->assertDatabaseHas('users', [
+        'email' => 'sem-recaptcha@example.com',
+    ]);
+});
+
+test('registration is blocked when allow_registration is disabled in settings', function () {
+    SystemSetting::set('allow_registration', false);
+
+    $getResp = $this->get(route('cadastro'));
+    $getResp->assertRedirect(route('login'));
+    $getResp->assertSessionHas('warning');
+
+    $postResp = $this->post(route('cadastro'), [
+        'name' => 'Tentativa Bloqueada',
+        'email' => 'bloqueado@example.com',
+        'password' => 'secret123',
+        'password_confirmation' => 'secret123',
+    ]);
+    $postResp->assertRedirect(route('login'));
+    $postResp->assertSessionHas('warning');
+
+    $this->assertDatabaseMissing('users', ['email' => 'bloqueado@example.com']);
 });

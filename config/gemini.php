@@ -44,7 +44,7 @@ return [
     |
     | The default model to be used in generative tasks.
     */
-    'default_model' => env('GEMINI_DEFAULT_MODEL', 'gemini-3.8-flash'),
+    'default_model' => env('GEMINI_DEFAULT_MODEL', 'gemini-3.5-flash-lite'),
 
     /*
     |--------------------------------------------------------------------------
@@ -54,8 +54,8 @@ return [
     | A list of models to try in sequence if the default model's quota is exceeded.
     */
     'fallback_models' => [
-        'gemini-3.8-flash',
-        'gemini-3.5-flash',
         'gemini-3.5-flash-lite',
+        'gemini-flash-lite-latest',
+        'gemini-3.8-flash',
     ],
 ];

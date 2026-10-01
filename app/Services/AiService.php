@@ -110,7 +110,12 @@ class AiService
                str_contains($message, 'overload') ||
                str_contains($message, 'unavailable') ||
                str_contains($message, '503') ||
+               str_contains($message, '504') ||
                str_contains($message, 'resource exhausted') ||
-               str_contains($message, 'try again later');
+               str_contains($message, 'try again later') ||
+               str_contains($message, 'timed out') ||
+               str_contains($message, 'timeout') ||
+               str_contains($message, 'curl error 28') ||
+               str_contains($message, 'deadline exceeded');
     }
 }

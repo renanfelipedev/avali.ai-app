@@ -348,7 +348,7 @@ class GeminiApiKeyService
      */
     public function getDefaultModel(): string
     {
-        return (string) (SystemSetting::get('gemini_default_model') ?: config('gemini.default_model', 'gemini-3.8-flash'));
+        return (string) (SystemSetting::get('gemini_default_model') ?: config('gemini.default_model', 'gemini-3.5-flash-lite'));
     }
 
     /**
@@ -372,12 +372,12 @@ class GeminiApiKeyService
      */
     public function getFallbackModels(): array
     {
-        $stored = SystemSetting::get('gemini_fallback_models');
-        if (is_array($stored) && ! empty($stored)) {
+        $stored = SystemSetting::getArray('gemini_fallback_models');
+        if (! empty($stored)) {
             return $stored;
         }
 
-        return config('gemini.fallback_models', ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite']);
+        return config('gemini.fallback_models', ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.8-flash']);
     }
 
     /**

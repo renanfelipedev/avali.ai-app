@@ -31,6 +31,7 @@
                 </flux:sidebar.item>
                 <flux:sidebar.item icon="key" href="{{ route('gemini-keys.index') }}">Chaves Gemini</flux:sidebar.item>
                 <flux:sidebar.item icon="heart" href="{{ route('health') }}">Saúde do Sistema</flux:sidebar.item>
+                <flux:sidebar.item icon="cog-6-tooth" href="{{ route('settings.index') }}">Configurações</flux:sidebar.item>
 
             </flux:sidebar.group>
         @else

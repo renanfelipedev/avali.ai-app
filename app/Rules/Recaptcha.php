@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Models\SystemSetting;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Http;
@@ -14,7 +15,7 @@ class Recaptcha implements ValidationRule
         protected ?string $action = null,
         protected ?float $minScore = null
     ) {
-        $this->minScore = $minScore ?? (float) config('services.recaptcha.min_score', 0.5);
+        $this->minScore = $minScore ?? SystemSetting::getFloat('recaptcha_min_score', (float) config('services.recaptcha.min_score', 0.5));
     }
 
     /**
@@ -24,12 +25,17 @@ class Recaptcha implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
+        // Se o reCAPTCHA estiver desativado no sistema, não bloqueia
+        if (! SystemSetting::getBool('recaptcha_enabled', true)) {
+            return;
+        }
+
         // Se estiver em ambiente de teste e sem token enviado (ou sem chave), ignora para não quebrar testes unitários
         if (app()->environment('testing') && empty($value)) {
             return;
         }
 
-        $secretKey = config('services.recaptcha.secret_key');
+        $secretKey = SystemSetting::get('recaptcha_secret_key', config('services.recaptcha.secret_key'));
 
         if (empty($secretKey)) {
             if (app()->environment('local', 'testing')) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Rules\Recaptcha;
 use Illuminate\Http\Request;
@@ -14,11 +15,23 @@ class RegisterController extends Controller
      */
     public function create(Request $request)
     {
+        if (! SystemSetting::getBool('allow_registration', true)) {
+            session()->flash('warning', 'Os cadastros de novos usuários estão temporariamente suspensos pelo administrador.');
+
+            return to_route('login');
+        }
+
         return view('auth.register');
     }
 
     public function store(Request $request)
     {
+        if (! SystemSetting::getBool('allow_registration', true)) {
+            session()->flash('warning', 'Os cadastros de novos usuários estão temporariamente suspensos pelo administrador.');
+
+            return to_route('login');
+        }
+
         // Honeypot: se robôs preencherem o campo invisível, simula sucesso e ignora silenciosamente
         if ($request->filled('website_hp')) {
             session()->flash('status', 'Seu cadastro foi solicitado, aguarde autorização do administrador');
@@ -26,12 +39,19 @@ class RegisterController extends Controller
             return to_route('login');
         }
 
-        $data = $request->validate([
+        $recaptchaEnabled = SystemSetting::getBool('recaptcha_enabled', true);
+
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
-            'g-recaptcha-response' => ['required', new Recaptcha('register')],
-        ], [
+        ];
+
+        if ($recaptchaEnabled) {
+            $rules['g-recaptcha-response'] = ['required', new Recaptcha('register')];
+        }
+
+        $data = $request->validate($rules, [
             'g-recaptcha-response.required' => 'A validação de segurança (reCAPTCHA) falhou. Por favor, tente novamente.',
         ]);
 

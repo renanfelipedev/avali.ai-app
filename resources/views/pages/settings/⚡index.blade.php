@@ -23,6 +23,8 @@ new #[Layout('layouts.main')] class extends Component
 
     public bool $allow_registration = true;
 
+    public bool $google_login_enabled = true;
+
     // Estado do teste do reCAPTCHA
     public bool $isTestingRecaptcha = false;
 
@@ -50,6 +52,7 @@ new #[Layout('layouts.main')] class extends Component
         $this->recaptcha_secret_key = (string) SystemSetting::get('recaptcha_secret_key', config('services.recaptcha.secret_key', ''));
         $this->recaptcha_min_score = SystemSetting::getFloat('recaptcha_min_score', (float) config('services.recaptcha.min_score', 0.5));
         $this->allow_registration = SystemSetting::getBool('allow_registration', true);
+        $this->google_login_enabled = SystemSetting::getBool('google_login_enabled', true);
 
         // Geral
         $this->maintenance_banner_enabled = SystemSetting::getBool('maintenance_banner_enabled', false);
@@ -70,6 +73,7 @@ new #[Layout('layouts.main')] class extends Component
         SystemSetting::set('recaptcha_secret_key', trim($this->recaptcha_secret_key));
         SystemSetting::set('recaptcha_min_score', $this->recaptcha_min_score);
         SystemSetting::set('allow_registration', $this->allow_registration);
+        SystemSetting::set('google_login_enabled', $this->google_login_enabled);
 
         Log::info('Configurações de segurança atualizadas pelo administrador ID '.Auth::id());
 
@@ -299,6 +303,32 @@ new #[Layout('layouts.main')] class extends Component
                         </flux:button>
                     </div>
                 </flux:card>
+
+                {{-- Card Login Social com Google --}}
+                <flux:card class="space-y-6">
+                    <div>
+                        <flux:heading size="lg">Autenticação com o Google (OAuth)</flux:heading>
+                        <flux:subheading>Gerencie a disponibilidade do login e cadastro rápido com conta Google.</flux:subheading>
+                    </div>
+
+                    <flux:separator />
+
+                    <div class="flex items-center justify-between p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
+                        <div>
+                            <div class="font-medium text-sm text-zinc-900 dark:text-white">Permitir login e cadastro com o Google</div>
+                            <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                                Quando desmarcado, o botão "Entrar com o Google" desaparece das telas de Login e Cadastro, bloqueando o fluxo de OAuth.
+                            </div>
+                        </div>
+                        <flux:switch wire:model="google_login_enabled" />
+                    </div>
+
+                    <div class="flex justify-end pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                        <flux:button variant="primary" wire:click="saveSecurity">
+                            Salvar Alterações
+                        </flux:button>
+                    </div>
+                </flux:card>
             </div>
 
             {{-- Coluna Lateral: Ajuda & Status --}}
@@ -335,6 +365,14 @@ new #[Layout('layouts.main')] class extends Component
                                 <flux:badge size="sm" color="green">Ativo</flux:badge>
                             @else
                                 <flux:badge size="sm" color="zinc">Inativo</flux:badge>
+                            @endif
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-zinc-600 dark:text-zinc-400">Login com Google</span>
+                            @if ($google_login_enabled)
+                                <flux:badge size="sm" color="green">Habilitado</flux:badge>
+                            @else
+                                <flux:badge size="sm" color="zinc">Desabilitado</flux:badge>
                             @endif
                         </div>
                     </div>

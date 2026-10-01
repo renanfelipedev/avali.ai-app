@@ -49,6 +49,7 @@ test('admin can update security settings via livewire', function () {
         ->set('recaptcha_secret_key', 'custom-secret-key')
         ->set('recaptcha_min_score', 0.8)
         ->set('allow_registration', false)
+        ->set('google_login_enabled', false)
         ->call('saveSecurity')
         ->assertHasNoErrors();
 
@@ -57,6 +58,7 @@ test('admin can update security settings via livewire', function () {
     expect(SystemSetting::get('recaptcha_secret_key'))->toBe('custom-secret-key');
     expect(SystemSetting::getFloat('recaptcha_min_score'))->toBe(0.8);
     expect(SystemSetting::getBool('allow_registration'))->toBeFalse();
+    expect(SystemSetting::getBool('google_login_enabled'))->toBeFalse();
 });
 
 test('admin can update general settings via livewire', function () {

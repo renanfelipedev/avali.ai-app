@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
@@ -17,6 +18,10 @@ class GoogleAuthController extends Controller
      */
     public function redirectToGoogle()
     {
+        if (! SystemSetting::getBool('google_login_enabled', true)) {
+            return redirect()->route('login')->withErrors(['email' => 'O login com o Google está temporariamente desativado.']);
+        }
+
         return Socialite::driver('google')
             ->scopes([
                 'https://www.googleapis.com/auth/classroom.courses.readonly',
@@ -36,6 +41,10 @@ class GoogleAuthController extends Controller
      */
     public function handleGoogleCallback()
     {
+        if (! SystemSetting::getBool('google_login_enabled', true)) {
+            return redirect()->route('login')->withErrors(['email' => 'O login com o Google está temporariamente desativado.']);
+        }
+
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (\Exception $e) {

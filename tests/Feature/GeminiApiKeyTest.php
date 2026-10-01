@@ -265,3 +265,19 @@ test('admin can switch to models tab and set default model via livewire', functi
 
     expect(app(GeminiApiKeyService::class)->getDefaultModel())->toBe('gemini-1.5-flash');
 });
+
+test('admin can access home page and ai status card loads lazily', function () {
+    $admin = createAdminUser();
+
+    $this->actingAs($admin)
+        ->get(route('home'))
+        ->assertOk()
+        ->assertSee('Provas Recentes');
+
+    Livewire::withoutLazyLoading();
+
+    Livewire::actingAs($admin)
+        ->test('admin.ai-status-card')
+        ->assertOk()
+        ->assertSee('Tokens Usados Hoje');
+});

@@ -14,7 +14,9 @@ Route::get('/login', [SessionController::class, 'create'])->name('login');
 Route::post('/login', [SessionController::class, 'store'])->name('login');
 
 Route::get('/cadastro', [RegisterController::class, 'create'])->name('cadastro');
-Route::post('/cadastro', [RegisterController::class, 'store'])->name('cadastro');
+Route::post('/cadastro', [RegisterController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('cadastro');
 
 // Password Reset
 Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');

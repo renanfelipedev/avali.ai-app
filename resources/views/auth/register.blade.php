@@ -4,8 +4,16 @@
 <div class="flex min-h-screen">
     <div class="flex-1 flex justify-center items-center">
         <div class="w-80 max-w-80 space-y-6">
-            <form action="{{ route('cadastro') }}" method="POST">
+            <form action="{{ route('cadastro') }}" method="POST" id="register-form">
                 @csrf
+
+                {{-- Honeypot anti-bot invisível --}}
+                <div class="hidden" style="display: none;" aria-hidden="true">
+                    <input type="text" name="website_hp" tabindex="-1" autocomplete="off" value="">
+                </div>
+
+                {{-- Token reCAPTCHA v3 --}}
+                <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
 
                 <div class="flex justify-center mb-6">
                     <a href="/" class="flex items-center gap-2">
@@ -16,6 +24,14 @@
                 <flux:heading class="text-center mb-4" size="xl">Cadastre-se</flux:heading>
 
                 <x-flash />
+
+                @error('g-recaptcha-response')
+                    <flux:callout variant="danger" icon="exclamation-triangle" class="mb-4">
+                        <flux:callout.text>
+                            {{ $message }}
+                        </flux:callout.text>
+                    </flux:callout>
+                @enderror
 
                 <div class="flex flex-col gap-2">
                     <flux:input label="Nome completo" value="{{ old('name') }}" name="name" placeholder="email@exemplo.com" />
@@ -75,4 +91,42 @@
         </div>
     </div>
 </div>
+
+@if (config('services.recaptcha.site_key'))
+    <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('register-form');
+            if (!form) return;
+
+            form.addEventListener('submit', function (event) {
+                const tokenInput = document.getElementById('g-recaptcha-response');
+                const siteKey = "{{ config('services.recaptcha.site_key') }}";
+
+                // Se já possui token preenchido (ou sem chave), envia diretamente
+                if (!siteKey || (tokenInput && tokenInput.value)) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (typeof grecaptcha !== 'undefined') {
+                    grecaptcha.ready(function () {
+                        grecaptcha.execute(siteKey, { action: 'register' })
+                            .then(function (token) {
+                                tokenInput.value = token;
+                                form.submit();
+                            })
+                            .catch(function (error) {
+                                console.error('reCAPTCHA error:', error);
+                                form.submit();
+                            });
+                    });
+                } else {
+                    form.submit();
+                }
+            });
+        });
+    </script>
+@endif
 @endsection

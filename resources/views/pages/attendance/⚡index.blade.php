@@ -11,6 +11,7 @@ new #[Layout('layouts.main')] class extends Component {
 
     public string $class_name = '';
     public ?int $classroom_id = null;
+    public ?int $duration_hours = 2;
     public bool $require_geolocation = false;
     public ?float $latitude = null;
     public ?float $longitude = null;
@@ -33,6 +34,7 @@ new #[Layout('layouts.main')] class extends Component {
         return [
             'class_name' => 'required|string|min:3|max:100',
             'classroom_id' => 'nullable|exists:classrooms,id',
+            'duration_hours' => 'required|integer|min:1|max:168',
             'require_geolocation' => 'boolean',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
@@ -44,11 +46,14 @@ new #[Layout('layouts.main')] class extends Component {
         return [
             'class_name' => 'Nome da Turma',
             'classroom_id' => 'Turma Vinculada',
+            'duration_hours' => 'Tempo de Disponibilidade (horas)',
         ];
     }
 
     public function with(): array
     {
+        AttendanceSession::closeAllExpired();
+
         $query = auth()->user()->attendanceSessions()->withCount('records')->latest();
 
         if (!empty($this->searchClass)) {
@@ -75,11 +80,15 @@ new #[Layout('layouts.main')] class extends Component {
     {
         $this->validate();
 
+        $duration = (int) $this->duration_hours;
+
         $session = AttendanceSession::create([
             'uuid' => (string) Str::uuid(),
             'user_id' => auth()->id(),
             'classroom_id' => $this->classroom_id,
             'class_name' => $this->class_name,
+            'duration_hours' => $duration,
+            'expires_at' => $duration > 0 ? now()->addHours($duration) : null,
             'is_active' => true,
             'require_geolocation' => $this->require_geolocation,
             'latitude' => $this->latitude,
@@ -89,6 +98,7 @@ new #[Layout('layouts.main')] class extends Component {
 
         $this->class_name = '';
         $this->classroom_id = null;
+        $this->duration_hours = 2;
         session()->flash('status', 'Chamada online iniciada com sucesso!');
 
         return $this->redirect(route('attendance.show', $session->uuid), navigate: true);
@@ -155,6 +165,10 @@ new #[Layout('layouts.main')] class extends Component {
                         @endforeach
                     </flux:select>
 
+                    <flux:input wire:model="duration_hours" label="Tempo de Disponibilidade (em horas)"
+                        type="number" min="1" max="168" placeholder="Ex: 2" icon="clock"
+                        description="A chamada será encerrada automaticamente após esse período." />
+
                     <flux:switch wire:model="require_geolocation" label="Exigir Localização (Geofencing)"
                         description="Garante que os alunos estejam num raio de 100m de você ao assinar." />
 
@@ -207,7 +221,10 @@ new #[Layout('layouts.main')] class extends Component {
                                             class="font-bold text-zinc-900 dark:text-white">{{ $session->class_name }}</span>
                                     </flux:table.cell>
                                     <flux:table.cell>
-                                        {{ $session->created_at->setTimezone('America/Bahia')->format('d/m/Y H:i') }}
+                                        <div>{{ $session->created_at->setTimezone('America/Bahia')->format('d/m/Y H:i') }}</div>
+                                        @if($session->duration_hours)
+                                            <div class="text-[11px] text-zinc-400">Duração: {{ $session->duration_hours }}h</div>
+                                        @endif
                                     </flux:table.cell>
                                     <flux:table.cell>
                                         <flux:badge color="zinc" size="sm" class="font-bold">
@@ -216,6 +233,12 @@ new #[Layout('layouts.main')] class extends Component {
                                     <flux:table.cell>
                                         @if ($session->is_active)
                                             <flux:badge color="indigo" class="animate-pulse">Ativa (Aberta)</flux:badge>
+                                            @if ($session->expires_at)
+                                                <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1">
+                                                    <flux:icon.clock class="w-3 h-3 text-indigo-500 inline shrink-0" />
+                                                    <span>Encerra {{ $session->expires_at->diffForHumans() }}</span>
+                                                </div>
+                                            @endif
                                         @else
                                             <flux:badge color="green">Finalizada</flux:badge>
                                         @endif

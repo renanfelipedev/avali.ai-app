@@ -287,9 +287,15 @@ new #[Layout('layouts.main')] class extends Component
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @forelse($classroom->attendanceSessions()->latest()->get() as $session)
+                    @php $session->closeIfExpired(); @endphp
                     <flux:card>
                         <div class="flex justify-between items-start mb-2">
-                            <flux:heading size="md">{{ $session->created_at->format('d/m/Y H:i') }}</flux:heading>
+                            <div>
+                                <flux:heading size="md">{{ $session->created_at->format('d/m/Y H:i') }}</flux:heading>
+                                @if($session->duration_hours)
+                                    <span class="text-[11px] text-zinc-400">Duração: {{ $session->duration_hours }}h</span>
+                                @endif
+                            </div>
                             @if($session->is_active)
                                 <flux:badge color="green">Aberta</flux:badge>
                             @else

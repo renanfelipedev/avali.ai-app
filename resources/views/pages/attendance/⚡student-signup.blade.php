@@ -36,6 +36,7 @@ new class extends Component {
     public function mount(string $uuid)
     {
         $this->session = AttendanceSession::where('uuid', $uuid)->firstOrFail();
+        $this->session->closeIfExpired();
 
         // Check if the student has already checked in via cookie
         if (request()->cookie('presence_' . $this->session->uuid)) {
@@ -53,12 +54,13 @@ new class extends Component {
     public function register()
     {
         $this->session->refresh();
+        $this->session->closeIfExpired();
 
         $this->validate();
 
         // Double check session is active
         if (!$this->session->is_active) {
-            $this->addError('student_name', 'Esta chamada já foi encerrada pelo professor.');
+            $this->addError('student_name', 'Esta chamada já foi encerrada.');
             return;
         }
 
@@ -149,8 +151,17 @@ new class extends Component {
                 </svg>
             </div>
             <h1 class="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Chamada Online</h1>
-            <h2 class="text-sm font-semibold text-zinc-500 uppercase tracking-wider">Turma: {{ $session->class_name }}
-            </h2>
+            <h2 class="text-sm font-semibold text-zinc-500 uppercase tracking-wider">Turma: {{ $session->class_name }}</h2>
+
+            @if ($session->is_active && $session->expires_at)
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span>Disponível até {{ $session->expires_at->setTimezone('America/Bahia')->format('H:i') }} (encerra {{ $session->expires_at->diffForHumans() }})</span>
+                </div>
+            @endif
         </div>
 
         <flux:separator />
@@ -183,7 +194,7 @@ new class extends Component {
                 </div>
                 <div class="space-y-1">
                     <h3 class="text-lg font-bold text-zinc-900 dark:text-white">Chamada Encerrada</h3>
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">Esta chamada já foi fechada pelo professor e não
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">Esta chamada foi finalizada e não
                         aceita mais registros.</p>
                 </div>
             </div>

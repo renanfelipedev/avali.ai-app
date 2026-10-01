@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Verifica e pré-aquece o cache de status da IA a cada 30 minutos em background
 Schedule::command('ia:check-status')->everyThirtyMinutes();
+
+// Encerra automaticamente chamadas cujo tempo limite expirou
+Schedule::command('attendance:close-expired')->everyMinute();

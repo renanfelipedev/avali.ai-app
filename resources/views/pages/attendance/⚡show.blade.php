@@ -15,11 +15,13 @@ new #[Layout('layouts.main')] class extends Component
     {
         $this->authorizeOwnership($session);
         $session->refresh();
+        $session->closeIfExpired();
         $this->session = $session;
     }
 
     public $new_classroom_id = null;
     public $new_class_name = '';
+    public ?int $new_duration_hours = null;
 
     public function getRecordsProperty()
     {
@@ -31,6 +33,7 @@ new #[Layout('layouts.main')] class extends Component
         $this->authorizeOwnership($this->session);
         $this->new_classroom_id = $this->session->classroom_id;
         $this->new_class_name = $this->session->class_name;
+        $this->new_duration_hours = $this->session->duration_hours;
         $this->modal('edit-classroom-modal')->show();
     }
 
@@ -40,11 +43,17 @@ new #[Layout('layouts.main')] class extends Component
 
         $this->validate([
             'new_class_name' => 'required|string|max:255',
+            'new_duration_hours' => 'nullable|integer|min:1|max:168',
         ]);
 
         $updateData = [
             'class_name' => $this->new_class_name,
         ];
+
+        if ($this->session->is_active && $this->new_duration_hours) {
+            $updateData['duration_hours'] = (int) $this->new_duration_hours;
+            $updateData['expires_at'] = $this->session->created_at->copy()->addHours((int) $this->new_duration_hours);
+        }
 
         if ($this->new_classroom_id) {
             $classroom = \App\Models\Classroom::find($this->new_classroom_id);
@@ -81,7 +90,11 @@ new #[Layout('layouts.main')] class extends Component
 
     public function refreshRecords()
     {
-        // Polling will call this to refresh data
+        // Polling will call this to refresh data and check expiration
+        $this->session->refresh();
+        if ($this->session->closeIfExpired()) {
+            session()->flash('status', 'O tempo limite da chamada expirou e ela foi encerrada automaticamente.');
+        }
         $this->session->load('records');
     }
 
@@ -165,7 +178,14 @@ new #[Layout('layouts.main')] class extends Component
                     <flux:badge color="green" size="sm">Finalizada</flux:badge>
                 @endif
             </div>
-            <flux:subheading>Iniciada em {{ $session->created_at->setTimezone('America/Bahia')->format('d/m/Y \à\s H:i:s') }}</flux:subheading>
+            <flux:subheading>
+                Iniciada em {{ $session->created_at->setTimezone('America/Bahia')->format('d/m/Y \à\s H:i') }}
+                @if($session->is_active && $session->expires_at)
+                    • <span class="text-indigo-600 dark:text-indigo-400 font-semibold">Encerra automaticamente {{ $session->expires_at->diffForHumans() }} (às {{ $session->expires_at->setTimezone('America/Bahia')->format('H:i') }})</span>
+                @elseif($session->duration_hours)
+                    • Duração configurada: {{ $session->duration_hours }}h
+                @endif
+            </flux:subheading>
         </div>
         <div class="flex items-center gap-2">
             @if ($session->is_active)
@@ -279,7 +299,7 @@ new #[Layout('layouts.main')] class extends Component
         <flux:card class="lg:col-span-2 space-y-4">
             <flux:heading size="lg">Resumo da Aula</flux:heading>
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
                     <div class="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
                         <flux:icon.users class="w-6 h-6" />
@@ -297,6 +317,27 @@ new #[Layout('layouts.main')] class extends Component
                     <div>
                         <div class="text-lg font-bold tracking-tight">{{ $session->created_at->setTimezone('America/Bahia')->format('d/m/Y H:i') }}</div>
                         <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Início da Chamada</div>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+                        <flux:icon.clock class="w-6 h-6" />
+                    </div>
+                    <div>
+                        <div class="text-lg font-bold tracking-tight">
+                            @if($session->duration_hours)
+                                {{ $session->duration_hours }}h
+                                @if($session->is_active && $session->expires_at)
+                                    <span class="text-xs font-normal text-zinc-500">({{ $session->expires_at->diffForHumans() }})</span>
+                                @endif
+                            @else
+                                Sem limite
+                            @endif
+                        </div>
+                        <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                            {{ $session->is_active ? 'Disponibilidade' : 'Duração' }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -410,6 +451,10 @@ new #[Layout('layouts.main')] class extends Component
                     <flux:select.option value="{{ $classroom->id }}">{{ $classroom->name }}</flux:select.option>
                 @endforeach
             </flux:select>
+
+            @if($session->is_active)
+                <flux:input wire:model="new_duration_hours" label="Tempo de Disponibilidade (em horas)" type="number" min="1" max="168" placeholder="Ex: 2" description="Duração a contar do início da chamada." />
+            @endif
 
             <div class="flex justify-end gap-2">
                 <flux:modal.close>

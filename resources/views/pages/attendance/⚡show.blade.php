@@ -16,6 +16,7 @@ new #[Layout('layouts.main')] class extends Component
         $this->authorizeOwnership($session);
         $session->refresh();
         $session->closeIfExpired();
+        $session->loadMissing(['classroom.students', 'records']);
         $this->session = $session;
     }
 
@@ -72,18 +73,23 @@ new #[Layout('layouts.main')] class extends Component
 
     public function getAbsenteesProperty()
     {
-        if (!$this->session->classroom_id) {
+        if (!$this->session->classroom_id || !$this->session->classroom) {
             return collect();
         }
 
-        $presentNames = $this->session->records()->pluck('student_name')->map(fn($name) => strtolower(trim($name)));
-        
-        return $this->session->classroom->students->filter(function ($student) use ($presentNames) {
-            $studentNameLower = strtolower(trim($student->name));
+        $nameService = app(\App\Services\StudentNameService::class);
+        $presentNames = $this->session->records()->pluck('student_name')->map(function ($name) use ($nameService) {
+            return $nameService->normalize($name);
+        });
+
+        return $this->session->classroom->students->filter(function ($student) use ($nameService, $presentNames) {
+            $studentNameNormalized = $nameService->normalize($student->name);
+
             // Return true if student is absent (name not in present names)
-            // Also do a partial match to be generous
-            return !$presentNames->contains(function ($presentName) use ($studentNameLower) {
-                return str_contains($studentNameLower, $presentName) || str_contains($presentName, $studentNameLower);
+            return !$presentNames->contains(function ($presentName) use ($studentNameNormalized) {
+                return $presentName === $studentNameNormalized
+                    || str_contains($studentNameNormalized, $presentName)
+                    || str_contains($presentName, $studentNameNormalized);
             });
         })->sortBy(fn($student) => \Illuminate\Support\Str::slug($student->name));
     }
@@ -375,10 +381,10 @@ new #[Layout('layouts.main')] class extends Component
             </flux:table.columns>
 
             <flux:table.rows>
-                @forelse ($session->records->sortBy(fn($record) => \Illuminate\Support\Str::slug($record->student_name)) as $record)
+                @forelse ($session->records->sortBy(fn($record) => \Illuminate\Support\Str::slug($record->formatted_student_name)) as $record)
                     <flux:table.row class="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/10 transition-colors">
                         <flux:table.cell>
-                            <span class="font-bold text-zinc-900 dark:text-zinc-50">{{ $record->student_name }}</span>
+                            <span class="font-bold text-zinc-900 dark:text-zinc-50">{{ $record->formatted_student_name }}</span>
                         </flux:table.cell>
                         <flux:table.cell>
                             {{ $record->created_at->setTimezone('America/Bahia')->format('H:i:s') }}
@@ -401,7 +407,7 @@ new #[Layout('layouts.main')] class extends Component
                             <span class="text-xs text-zinc-400 font-medium">{{ \Illuminate\Support\Str::limit($record->user_agent, 40) }}</span>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:button wire:click="deleteRecord({{ $record->id }})" wire:confirm="Tem certeza que deseja excluir o registro de presença de {{ $record->student_name }}?" size="xs" variant="ghost" color="danger" icon="trash" tooltip="Excluir Presença" />
+                            <flux:button wire:click="deleteRecord({{ $record->id }})" wire:confirm="Tem certeza que deseja excluir o registro de presença de {{ $record->formatted_student_name }}?" size="xs" variant="ghost" color="danger" icon="trash" tooltip="Excluir Presença" />
                         </flux:table.cell>
                     </flux:table.row>
                 @empty

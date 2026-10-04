@@ -145,10 +145,10 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($session->records->sortBy('student_name') as $index => $record)
+            @forelse($session->records->sortBy(fn($r) => \Illuminate\Support\Str::slug($r->formatted_student_name)) as $index => $record)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td style="font-weight: bold; color: #1f2937;">{{ $record->student_name }}</td>
+                    <td style="font-weight: bold; color: #1f2937;">{{ $record->formatted_student_name }}</td>
                     <td>{{ $record->created_at->format('H:i:s') }}</td>
                     <td style="font-size: 10px; color: #6b7280;">
                         IP: {{ $record->ip_address ?? 'N/D' }}<br>

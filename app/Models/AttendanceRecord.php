@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\StudentNameService;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,5 +24,16 @@ class AttendanceRecord extends Model
     public function session(): BelongsTo
     {
         return $this->belongsTo(AttendanceSession::class, 'attendance_session_id');
+    }
+
+    public function getFormattedStudentNameAttribute(): string
+    {
+        if (empty($this->student_name)) {
+            return '';
+        }
+
+        $session = $this->relationLoaded('session') ? $this->session : $this->session()->first();
+
+        return app(StudentNameService::class)->resolveStudentName($this->student_name, $session);
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Models\AttendanceSession;
 use App\Models\AttendanceRecord;
+use App\Services\StudentNameService;
 use Livewire\Component;
 
 new class extends Component {
@@ -35,7 +36,7 @@ new class extends Component {
 
     public function mount(string $uuid)
     {
-        $this->session = AttendanceSession::where('uuid', $uuid)->firstOrFail();
+        $this->session = AttendanceSession::with(['classroom.students', 'records'])->where('uuid', $uuid)->firstOrFail();
         $this->session->closeIfExpired();
 
         // Check if the student has already checked in via cookie
@@ -74,10 +75,14 @@ new class extends Component {
             }
         }
 
-        // Check for duplicate name in this session to prevent spam
-        $exists = AttendanceRecord::where('attendance_session_id', $this->session->id)
-            ->where('student_name', trim($this->student_name))
-            ->exists();
+        $nameService = app(StudentNameService::class);
+        $finalStudentName = $nameService->resolveStudentName($this->student_name, $this->session);
+
+        // Check for duplicate name in this session to prevent spam (accent-insensitive)
+        $normalizedFinal = $nameService->normalize($finalStudentName);
+        $exists = $this->session->records()->get()->contains(function ($record) use ($nameService, $normalizedFinal) {
+            return $nameService->normalize($record->student_name) === $normalizedFinal;
+        });
 
         if ($exists) {
             $this->addError('student_name', 'Este nome já foi registrado nesta chamada.');
@@ -99,7 +104,7 @@ new class extends Component {
         // Record presence
         AttendanceRecord::create([
             'attendance_session_id' => $this->session->id,
-            'student_name' => trim($this->student_name),
+            'student_name' => $finalStudentName,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
             'device_id' => $this->device_id,
@@ -239,7 +244,15 @@ new class extends Component {
                 @endif
 
                 <flux:input wire:model="student_name" name="student_name" autocomplete="name" label="Nome Completo"
-                    placeholder="Digite seu nome completo" icon="user" autofocus required />
+                    placeholder="Digite seu nome completo" icon="user" list="classroom-students" autofocus required />
+
+                @if ($session->classroom_id && $session->classroom && $session->classroom->students->isNotEmpty())
+                    <datalist id="classroom-students">
+                        @foreach ($session->classroom->students->sortBy(fn($s) => \Illuminate\Support\Str::slug($s->name)) as $enrolledStudent)
+                            <option value="{{ $enrolledStudent->name }}"></option>
+                        @endforeach
+                    </datalist>
+                @endif
 
                 <flux:button type="submit" variant="primary" class="w-full">
                     <span x-show="!loadingLocation">Confirmar Presença</span>

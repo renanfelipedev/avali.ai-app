@@ -196,8 +196,6 @@ new class extends Component {
             @endif
         </div>
 
-        <flux:separator />
-
         <!-- CORE FLOWS -->
         @if ($hasRegistered)
             <!-- SUCCESS STATE -->
@@ -254,14 +252,14 @@ new class extends Component {
                 }
             }" @submit.prevent="submitForm" class="space-y-4">
                 @if ($session->require_geolocation)
-                    <flux:callout color="indigo" icon="map-pin" class="text-xs">
+                    <flux:callout color="indigo" icon="map-pin" class="text-xs border-0">
                         <flux:callout.heading class="font-bold">Validação por Localização (GPS)</flux:callout.heading>
                         <flux:callout.text>O professor exigiu presença física num raio de {{ $session->radius_meters ?? 100 }}m da sala.</flux:callout.text>
                     </flux:callout>
                 @endif
 
                 @if ($session->only_enrolled)
-                    <flux:callout color="purple" icon="shield-check" class="text-xs">
+                    <flux:callout color="purple" icon="shield-check" class="text-xs border-0">
                         <flux:callout.heading class="font-bold">Apenas Matriculados</flux:callout.heading>
                         <flux:callout.text>Apenas alunos cadastrados na lista oficial da turma podem confirmar presença.</flux:callout.text>
                     </flux:callout>

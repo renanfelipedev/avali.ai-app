@@ -236,7 +236,9 @@ new #[Layout('layouts.main')] class extends Component {
                         @endif
                     </div>
 
-                    <flux:separator text="Segurança & Antifraude" />
+                    <div class="pt-1">
+                        <flux:subheading class="text-xs font-semibold uppercase tracking-wider mb-2">Segurança & Antifraude</flux:subheading>
+                    </div>
 
                     <div class="space-y-4">
                         <flux:switch wire:model.live="require_pin" label="Exigir Código PIN (4 dígitos)"
@@ -247,8 +249,6 @@ new #[Layout('layouts.main')] class extends Component {
                                 placeholder="Ex: 4892 (Vazio = gerar aleatório)" maxlength="4" icon="key"
                                 description="Deixe em branco para gerar um código aleatório de 4 dígitos." />
                         @endif
-
-                        <flux:separator />
 
                         <flux:switch wire:model.live="require_geolocation" label="Exigir Localização (Geofencing)"
                             description="Valida se os alunos estão presentes fisicamente perto de você." />

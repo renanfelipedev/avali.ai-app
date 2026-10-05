@@ -280,29 +280,27 @@ new #[Layout('layouts.main')] class extends Component {
         class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         @if ($session->is_active)
             <!-- QR CODE CARD -->
-            <flux:card class="lg:col-span-1 flex flex-col items-center justify-center p-6 space-y-4 shadow-sm">
+            <flux:card class="lg:col-span-1 flex flex-col items-center justify-center p-6 space-y-4">
                 <flux:heading size="lg">QR Code para Celular</flux:heading>
                 <flux:subheading class="text-center">Peça para os alunos escanearem a imagem abaixo para registrar o
                     nome.</flux:subheading>
 
                 <div
-                    class="p-4 bg-white rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center">
+                    class="p-4 bg-white rounded-2xl flex items-center justify-center">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ urlencode(route('attendance.student-signup', $session->uuid)) }}"
                         alt="QR Code" class="w-48 h-48 sm:w-56 sm:h-56">
                 </div>
 
                 @if ($session->require_pin)
-                    <flux:callout color="amber"
-                        class="w-full text-center py-3 flex flex-col items-center justify-center">
-                        <flux:callout.heading
-                            class="uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 text-center w-full">
+                    <div class="w-full text-center py-3 px-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 flex flex-col items-center justify-center">
+                        <div class="uppercase tracking-wider text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 text-center w-full">
                             <flux:icon.key class="size-3.5 inline-block shrink-0" />
                             <span>Código PIN da Sala</span>
-                        </flux:callout.heading>
+                        </div>
                         <div class="text-3xl sm:text-4xl font-black font-mono tracking-widest text-amber-600 dark:text-amber-400 mt-1 text-center w-full select-all">
                             {{ $session->pin_code }}
                         </div>
-                    </flux:callout>
+                    </div>
                 @endif
 
                 <div class="flex gap-2 w-full">
@@ -358,39 +356,36 @@ new #[Layout('layouts.main')] class extends Component {
 
                 <!-- QR Code Wrapper -->
                 <div
-                    class="p-6 bg-white rounded-3xl shadow-2xl border border-zinc-200 flex items-center justify-center animate-fade-in">
+                    class="p-6 bg-white rounded-3xl shadow-2xl flex items-center justify-center animate-fade-in">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=450x450&data={{ urlencode(route('attendance.student-signup', $session->uuid)) }}"
                         alt="QR Code" class="w-72 h-72 sm:w-96 sm:h-96 md:w-[400px] md:h-[400px]">
                 </div>
 
                 @if ($session->require_pin)
-                    <flux:callout color="amber"
-                        class="max-w-xl w-full text-center py-6 px-8 shadow-xl flex flex-col items-center justify-center">
-                        <flux:callout.heading
-                            class="uppercase tracking-widest text-base sm:text-lg font-bold flex items-center justify-center gap-2 text-center w-full">
+                    <div class="max-w-xl w-full text-center py-6 px-8 rounded-3xl bg-amber-50 dark:bg-amber-950/30 shadow-lg flex flex-col items-center justify-center">
+                        <div class="uppercase tracking-widest text-base sm:text-lg font-bold text-amber-700 dark:text-amber-400 flex items-center justify-center gap-2 text-center w-full">
                             <flux:icon.key class="size-6 inline-block shrink-0" />
                             <span>Código PIN Obrigatório</span>
-                        </flux:callout.heading>
+                        </div>
                         <div class="font-black font-mono tracking-[0.25em] text-amber-600 dark:text-amber-400 text-center w-full select-all"
                              style="font-size: clamp(4.5rem, 12vw, 8rem); line-height: 1.1; margin-top: 0.5rem;">
                             {{ $session->pin_code }}
                         </div>
-                    </flux:callout>
+                    </div>
                 @endif
 
                 <!-- URL Fallback -->
-                <flux:card class="text-center max-w-xl break-all">
-                    <flux:subheading class="text-xs uppercase tracking-wider font-bold">Ou acesse pelo link:
-                    </flux:subheading>
+                <div class="text-center max-w-xl break-all p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+                    <div class="text-xs uppercase tracking-wider font-bold text-zinc-500">Ou acesse pelo link:</div>
                     <div class="text-indigo-600 dark:text-indigo-400 font-mono font-bold text-base sm:text-lg mt-1">
                         {{ route('attendance.student-signup', $session->uuid) }}
                     </div>
-                </flux:card>
+                </div>
             </div>
         @else
             <!-- METRICS CARD WHEN COMPLETED -->
             <flux:card
-                class="lg:col-span-1 flex flex-col items-center justify-center p-6 space-y-4 shadow-sm border border-emerald-100 dark:border-emerald-950/20 bg-emerald-50/10 dark:bg-emerald-950/5">
+                class="lg:col-span-1 flex flex-col items-center justify-center p-6 space-y-4 bg-emerald-50/20 dark:bg-emerald-950/10">
                 <div
                     class="p-4 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
                     <flux:icon.check-circle class="w-12 h-12" />
@@ -408,7 +403,7 @@ new #[Layout('layouts.main')] class extends Component {
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div
-                    class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+                    class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 flex items-center gap-3">
                     <div
                         class="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
                         <flux:icon.users class="w-6 h-6" />
@@ -421,7 +416,7 @@ new #[Layout('layouts.main')] class extends Component {
                 </div>
 
                 <div
-                    class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+                    class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 flex items-center gap-3">
                     <div class="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
                         <flux:icon.clock class="w-6 h-6" />
                     </div>
@@ -434,7 +429,7 @@ new #[Layout('layouts.main')] class extends Component {
                 </div>
 
                 <div
-                    class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+                    class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 flex items-center gap-3">
                     <div class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
                         <flux:icon.clock class="w-6 h-6" />
                     </div>
@@ -454,12 +449,12 @@ new #[Layout('layouts.main')] class extends Component {
             </div>
 
             <div
-                class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 space-y-2">
-                <div class="flex justify-between border-b border-zinc-150 dark:border-zinc-800 pb-1.5">
+                class="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 text-xs text-zinc-500 space-y-2.5">
+                <div class="flex justify-between">
                     <span class="font-bold">Professor:</span>
                     <span>{{ $session->user->name ?? auth()->user()->name }}</span>
                 </div>
-                <div class="flex justify-between border-b border-zinc-150 dark:border-zinc-800 pb-1.5">
+                <div class="flex justify-between">
                     <span class="font-bold">Recursos Ativos:</span>
                     <span class="font-medium text-zinc-700 dark:text-zinc-300">
                         {{ $session->require_pin ? "PIN ({$session->pin_code})" : 'Sem PIN' }} •
@@ -476,7 +471,7 @@ new #[Layout('layouts.main')] class extends Component {
     </div>
 
     <!-- STUDENT LIST -->
-    <flux:card class="relative overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm">
+    <flux:card class="overflow-hidden">
         <div class="mb-4">
             <flux:heading size="lg" class="font-extrabold tracking-tight">Estudantes Confirmados</flux:heading>
             <flux:subheading>Esta lista atualiza automaticamente a cada 3 segundos enquanto a chamada estiver ativa.
@@ -549,8 +544,7 @@ new #[Layout('layouts.main')] class extends Component {
     </flux:card>
 
     @if ($session->classroom_id)
-        <flux:card
-            class="mt-6 relative overflow-hidden border border-red-200 dark:border-red-900/30 shadow-sm bg-red-50/10 dark:bg-red-950/5">
+        <flux:card class="mt-6 overflow-hidden">
             <div class="mb-4">
                 <flux:heading size="lg" class="font-extrabold tracking-tight text-red-600 dark:text-red-400">
                     Estudantes Ausentes ({{ $this->absentees->count() }})</flux:heading>
@@ -560,15 +554,16 @@ new #[Layout('layouts.main')] class extends Component {
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 @forelse($this->absentees as $absentee)
                     <div
-                        class="p-3 bg-white dark:bg-zinc-900 border border-red-100 dark:border-red-900/20 rounded-lg flex items-center gap-2">
-                        <flux:icon.x-circle class="w-5 h-5 text-red-500" />
+                        class="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl flex items-center gap-2">
+                        <flux:icon.x-circle class="w-5 h-5 text-red-500 shrink-0" />
                         <span
                             class="font-medium text-sm text-zinc-700 dark:text-zinc-300">{{ $absentee->name }}</span>
                     </div>
                 @empty
-                    <flux:callout color="green" icon="check-badge" class="col-span-full text-center">
-                        <flux:callout.heading class="font-bold">Todos os alunos da turma estão presentes!</flux:callout.heading>
-                    </flux:callout>
+                    <div class="col-span-full p-4 text-center rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-2 font-bold text-sm">
+                        <flux:icon.check-badge class="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Todos os alunos da turma estão presentes!</span>
+                    </div>
                 @endforelse
             </div>
         </flux:card>
@@ -604,7 +599,7 @@ new #[Layout('layouts.main')] class extends Component {
                         description="Tempo total a contar do início da chamada." />
                 @endif
 
-                <flux:separator text="Segurança & Antifraude" />
+                <div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider pt-1">Segurança & Antifraude</div>
 
                 <div class="space-y-4">
                     <flux:switch wire:model.live="new_require_pin" label="Exigir Código PIN (4 dígitos)"

@@ -8,6 +8,7 @@ use Livewire\Component;
 new class extends Component {
     public AttendanceSession $session;
     public string $student_name = '';
+    public string $pin_input = '';
     public bool $hasRegistered = false;
     public ?string $device_id = null;
 
@@ -22,15 +23,22 @@ new class extends Component {
 
     public function rules(): array
     {
-        return [
+        $rules = [
             'student_name' => 'required|string|min:3|max:100',
         ];
+
+        if ($this->session->require_pin) {
+            $rules['pin_input'] = 'required|string|size:4';
+        }
+
+        return $rules;
     }
 
     public function validationAttributes(): array
     {
         return [
             'student_name' => 'Seu Nome Completo',
+            'pin_input' => 'Código PIN',
         ];
     }
 
@@ -65,6 +73,14 @@ new class extends Component {
             return;
         }
 
+        // Validate PIN code if required
+        if ($this->session->require_pin) {
+            if (trim($this->pin_input) !== (string) $this->session->pin_code) {
+                $this->addError('pin_input', 'Código PIN incorreto. Verifique os 4 dígitos na tela do professor.');
+                return;
+            }
+        }
+
         // Check if device_id has already registered in this session
         if ($this->device_id) {
             $deviceExists = AttendanceRecord::where('attendance_session_id', $this->session->id)->where('device_id', $this->device_id)->exists();
@@ -76,6 +92,23 @@ new class extends Component {
         }
 
         $nameService = app(StudentNameService::class);
+
+        // Check if only enrolled students are allowed
+        if ($this->session->only_enrolled && $this->session->classroom_id && $this->session->classroom) {
+            $enrolledStudents = $this->session->classroom->students;
+            $normalizedInput = $nameService->normalize($this->student_name);
+
+            $matchedEnrolled = $enrolledStudents->first(function ($student) use ($nameService, $normalizedInput) {
+                $norm = $nameService->normalize($student->name);
+                return $norm === $normalizedInput || str_contains($norm, $normalizedInput) || str_contains($normalizedInput, $norm);
+            });
+
+            if (!$matchedEnrolled) {
+                $this->addError('student_name', 'Apenas alunos matriculados nesta turma podem registrar presença. Se você é aluno desta turma, fale com o professor.');
+                return;
+            }
+        }
+
         $finalStudentName = $nameService->resolveStudentName($this->student_name, $this->session);
 
         // Check for duplicate name in this session to prevent spam (accent-insensitive)
@@ -144,27 +177,21 @@ new class extends Component {
     }
 }"
     class="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col justify-center items-center p-4">
-    <div
-        class="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+    <flux:card class="w-full max-w-md p-6 sm:p-8 shadow-xl space-y-6">
         <!-- HEADER -->
         <div class="text-center space-y-2">
             <div
                 class="inline-flex p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
+                <flux:icon.clipboard-document-check class="w-8 h-8" />
             </div>
-            <h1 class="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Chamada Online</h1>
-            <h2 class="text-sm font-semibold text-zinc-500 uppercase tracking-wider">Turma: {{ $session->class_name }}</h2>
+            <flux:heading size="xl" class="font-black tracking-tight text-center">Chamada Online</flux:heading>
+            <flux:subheading class="text-xs font-semibold uppercase tracking-wider text-center">Turma: {{ $session->class_name }}</flux:subheading>
 
             @if ($session->is_active && $session->expires_at)
-                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    <span>Disponível até {{ $session->expires_at->setTimezone('America/Bahia')->format('H:i') }} (encerra {{ $session->expires_at->diffForHumans() }})</span>
+                <div class="flex justify-center mt-2">
+                    <flux:badge color="amber" icon="clock" size="sm">
+                        Disponível até {{ $session->expires_at->setTimezone('America/Bahia')->format('H:i') }} (encerra {{ $session->expires_at->diffForHumans() }})
+                    </flux:badge>
                 </div>
             @endif
         </div>
@@ -176,31 +203,23 @@ new class extends Component {
             <!-- SUCCESS STATE -->
             <div class="text-center space-y-4 py-4 animate-fade-in">
                 <div
-                    class="inline-flex p-4 rounded-full bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-400">
-                    <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    class="inline-flex p-4 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                    <flux:icon.check-circle class="w-12 h-12" />
                 </div>
                 <div class="space-y-1">
-                    <h3 class="text-lg font-bold text-zinc-900 dark:text-white">Presença Confirmada!</h3>
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">Obrigado! Sua presença foi registrada com
-                        sucesso.</p>
+                    <flux:heading size="lg">Presença Confirmada!</flux:heading>
+                    <flux:subheading>Obrigado! Sua presença foi registrada com sucesso.</flux:subheading>
                 </div>
             </div>
         @elseif (!$session->is_active)
             <!-- CLOSED SESSION STATE -->
             <div class="text-center space-y-4 py-4 animate-fade-in">
                 <div class="inline-flex p-4 rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400">
-                    <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
+                    <flux:icon.exclamation-triangle class="w-12 h-12" />
                 </div>
                 <div class="space-y-1">
-                    <h3 class="text-lg font-bold text-zinc-900 dark:text-white">Chamada Encerrada</h3>
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">Esta chamada foi finalizada e não
-                        aceita mais registros.</p>
+                    <flux:heading size="lg">Chamada Encerrada</flux:heading>
+                    <flux:subheading>Esta chamada foi finalizada e não aceita mais registros.</flux:subheading>
                 </div>
             </div>
         @else
@@ -235,16 +254,28 @@ new class extends Component {
                 }
             }" @submit.prevent="submitForm" class="space-y-4">
                 @if ($session->require_geolocation)
-                    <div
-                        class="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-800 dark:text-indigo-300 text-xs rounded-xl border border-indigo-100 dark:border-indigo-800/30">
-                        <strong>Aviso de Privacidade:</strong> O professor exigiu validação presencial (Geofencing). Ao
-                        continuar, a sua distância até o professor será calculada. <strong>Sua localização exata NÃO
-                            será guardada pelo sistema.</strong>
-                    </div>
+                    <flux:callout color="indigo" icon="map-pin" class="text-xs">
+                        <flux:callout.heading class="font-bold">Validação por Localização (GPS)</flux:callout.heading>
+                        <flux:callout.text>O professor exigiu presença física num raio de {{ $session->radius_meters ?? 100 }}m da sala.</flux:callout.text>
+                    </flux:callout>
+                @endif
+
+                @if ($session->only_enrolled)
+                    <flux:callout color="purple" icon="shield-check" class="text-xs">
+                        <flux:callout.heading class="font-bold">Apenas Matriculados</flux:callout.heading>
+                        <flux:callout.text>Apenas alunos cadastrados na lista oficial da turma podem confirmar presença.</flux:callout.text>
+                    </flux:callout>
                 @endif
 
                 <flux:input wire:model="student_name" name="student_name" autocomplete="name" label="Nome Completo"
                     placeholder="Digite seu nome completo" icon="user" list="classroom-students" autofocus required />
+
+                @if ($session->require_pin)
+                    <flux:input wire:model="pin_input" name="pin_input" label="Código PIN da Sala (4 dígitos)"
+                        placeholder="Ex: 1234" maxlength="4" icon="key"
+                        description="Digite o código de 4 dígitos exibido no projetor do professor."
+                        class="tracking-widest font-mono text-center font-bold text-lg" required />
+                @endif
 
                 @if ($session->classroom_id && $session->classroom && $session->classroom->students->isNotEmpty())
                     <datalist id="classroom-students">
@@ -254,7 +285,7 @@ new class extends Component {
                     </datalist>
                 @endif
 
-                <flux:button type="submit" variant="primary" class="w-full">
+                <flux:button type="submit" variant="primary" class="w-full" icon="check">
                     <span x-show="!loadingLocation">Confirmar Presença</span>
                     <span x-show="loadingLocation">Validando localização...</span>
                 </flux:button>
@@ -264,5 +295,5 @@ new class extends Component {
         <div class="text-center text-[10px] text-zinc-400 dark:text-zinc-600 font-mono">
             ID: {{ substr($session->uuid, 0, 8) }}
         </div>
-    </div>
+    </flux:card>
 </div>

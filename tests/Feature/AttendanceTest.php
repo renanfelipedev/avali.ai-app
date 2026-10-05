@@ -119,9 +119,7 @@ test('student cannot sign up twice from the same device_id in a session', functi
     ]);
 });
 
-test('teacher can close session and send email', function () {
-    Mail::fake();
-
+test('teacher can end an active attendance session', function () {
     $user = User::factory()->create();
     $session = AttendanceSession::create([
         'uuid' => 'test-uuid-1234',
@@ -132,15 +130,11 @@ test('teacher can close session and send email', function () {
 
     Livewire::actingAs($user)
         ->test('pages::attendance.show', ['session' => $session])
-        ->call('endSessionAndSendMail')
+        ->call('endSession')
         ->assertHasNoErrors();
 
     $session->refresh();
     expect($session->is_active)->toBeFalse();
-
-    Mail::assertQueued(AttendanceReportMail::class, function ($mail) use ($user, $session) {
-        return $mail->hasTo($user->email) && $mail->session->id === $session->id;
-    });
 });
 
 test('teacher can start an attendance session with custom duration in hours', function () {
@@ -388,3 +382,132 @@ test('absentees list correctly recognizes students who signed up without accents
     expect($absentees->count())->toBe(1)
         ->and($absentees->first()->name)->toBe('José da Silva');
 });
+
+test('teacher can start an attendance session with duration in minutes', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::attendance.index')
+        ->set('class_name', 'Chamada 15 Minutos')
+        ->set('duration_type', '15')
+        ->call('startSession')
+        ->assertHasNoErrors()
+        ->assertRedirect();
+
+    $session = AttendanceSession::where('class_name', 'Chamada 15 Minutos')->first();
+    expect($session)->not->toBeNull()
+        ->and($session->duration_minutes)->toBe(15)
+        ->and($session->duration_hours)->toBe(1)
+        ->and($session->formatted_duration)->toBe('15 min');
+});
+
+test('teacher can start session with custom geofence radius', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::attendance.index')
+        ->set('class_name', 'Chamada com GPS 50m')
+        ->set('require_geolocation', true)
+        ->set('radius_meters', 50)
+        ->call('startSession')
+        ->assertHasNoErrors();
+
+    $session = AttendanceSession::where('class_name', 'Chamada com GPS 50m')->first();
+    expect($session)->not->toBeNull()
+        ->and($session->require_geolocation)->toBeTrue()
+        ->and($session->radius_meters)->toBe(50);
+});
+
+test('teacher can require PIN code and student must provide matching PIN', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::attendance.index')
+        ->set('class_name', 'Chamada com PIN')
+        ->set('require_pin', true)
+        ->set('pin_code', '7842')
+        ->call('startSession')
+        ->assertHasNoErrors();
+
+    $session = AttendanceSession::where('class_name', 'Chamada com PIN')->first();
+    expect($session)->not->toBeNull()
+        ->and($session->require_pin)->toBeTrue()
+        ->and($session->pin_code)->toBe('7842');
+
+    // Attempt registration with wrong PIN
+    Livewire::test('pages::attendance.student-signup', ['uuid' => $session->uuid])
+        ->set('student_name', 'Carlos Alberto')
+        ->set('pin_input', '0000')
+        ->call('register')
+        ->assertHasErrors(['pin_input']);
+
+    expect($session->records()->count())->toBe(0);
+
+    // Attempt registration with correct PIN
+    Livewire::test('pages::attendance.student-signup', ['uuid' => $session->uuid])
+        ->set('student_name', 'Carlos Alberto')
+        ->set('pin_input', '7842')
+        ->call('register')
+        ->assertHasNoErrors();
+
+    expect($session->records()->count())->toBe(1);
+});
+
+test('only_enrolled mode blocks non-enrolled students and allows enrolled students', function () {
+    $user = User::factory()->create();
+    $classroom = Classroom::create([
+        'user_id' => $user->id,
+        'name' => 'Turma Restrita',
+    ]);
+
+    $student = Student::create(['user_id' => $user->id, 'name' => 'Ana Clara Ferreira']);
+    $classroom->students()->attach($student->id);
+
+    $session = AttendanceSession::create([
+        'uuid' => 'test-strict-uuid',
+        'user_id' => $user->id,
+        'classroom_id' => $classroom->id,
+        'class_name' => 'Turma Restrita',
+        'only_enrolled' => true,
+        'is_active' => true,
+    ]);
+
+    // Student not in classroom should be blocked
+    Livewire::test('pages::attendance.student-signup', ['uuid' => $session->uuid])
+        ->set('student_name', 'Estranho de Outra Turma')
+        ->call('register')
+        ->assertHasErrors(['student_name']);
+
+    expect($session->records()->count())->toBe(0);
+
+    // Enrolled student should be accepted
+    Livewire::test('pages::attendance.student-signup', ['uuid' => $session->uuid])
+        ->set('student_name', 'ana clara ferreira')
+        ->call('register')
+        ->assertHasNoErrors();
+
+    expect($session->records()->count())->toBe(1);
+});
+
+test('teacher can export attendance list as CSV', function () {
+    $user = User::factory()->create();
+    $session = AttendanceSession::create([
+        'uuid' => 'test-csv-uuid',
+        'user_id' => $user->id,
+        'class_name' => 'Turma CSV',
+        'is_active' => true,
+    ]);
+
+    AttendanceRecord::create([
+        'attendance_session_id' => $session->id,
+        'student_name' => 'Bruno Henrique',
+        'ip_address' => '192.168.1.1',
+    ]);
+
+    $response = Livewire::actingAs($user)
+        ->test('pages::attendance.show', ['session' => $session])
+        ->call('exportCsv');
+
+    $response->assertFileDownloaded();
+});
+

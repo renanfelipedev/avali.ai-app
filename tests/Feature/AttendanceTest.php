@@ -510,3 +510,22 @@ test('teacher can export attendance list as CSV', function () {
 
     $response->assertFileDownloaded();
 });
+
+test('teacher can open attendance create modal via action', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::attendance.index')
+        ->assertSet('showCreateModal', false)
+        ->call('openCreateModal')
+        ->assertSet('showCreateModal', true);
+});
+
+test('attendance index opens modal when nova query param is present', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('attendance.index', ['nova' => 1]))
+        ->assertOk()
+        ->assertSee('Iniciar Nova Chamada');
+});

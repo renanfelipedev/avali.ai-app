@@ -1,0 +1,37 @@
+name: Deploy Laravel em Produção
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Executar deploy e migrations via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd /srv/avaliai
+
+            php artisan down --retry=60 || true
+
+            git checkout main
+            git pull origin main
+
+            composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+            php artisan migrate --force
+
+            npm ci
+            npm run build
+
+            php artisan optimize
+
+            php artisan queue:restart
+            php artisan up

@@ -41,6 +41,16 @@ new #[Layout('layouts.main')] class extends Component
         session()->flash('error', 'Conteúdo da prova não encontrado.');
     }
 
+    public function downloadMarkdown()
+    {
+        return $this->downloadSource();
+    }
+
+    public function downloadPdf()
+    {
+        return redirect()->route('exams.pdf', $this->exam);
+    }
+
 
 
     public function with(): array

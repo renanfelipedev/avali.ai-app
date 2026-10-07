@@ -76,7 +76,7 @@ class GoogleAuthController extends Controller
                 'google_token' => $googleUser->token,
                 'google_refresh_token' => $googleUser->refreshToken,
                 'google_token_expires_at' => now()->addSeconds($googleUser->expiresIn),
-                'is_active' => true,
+                'is_active' => SystemSetting::getBool('auto_activate_users', false),
             ]);
 
             // Assign default teacher role
@@ -87,7 +87,7 @@ class GoogleAuthController extends Controller
         }
 
         if (! $user->is_active) {
-            return redirect()->route('login')->withErrors(['email' => 'Sua conta está inativa. Entre em contato com o administrador.']);
+            return redirect()->route('login')->withErrors(['email' => 'Sua conta requer autorização do administrador antes do primeiro acesso.']);
         }
 
         Auth::login($user);

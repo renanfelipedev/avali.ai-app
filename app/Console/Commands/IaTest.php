@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\GeminiApiKeyService;
 use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Console\Command;
 use Smalot\PdfParser\Parser;
@@ -42,7 +43,8 @@ class IaTest extends Command
                 'resposta' => $resposta,
             ])->render();
 
-            $response = Gemini::generativeModel('gemini-flash-latest')
+            $model = app(GeminiApiKeyService::class)->getDefaultModel();
+            $response = Gemini::generativeModel($model)
                 ->generateContent($prompt);
 
             $text = trim($response->text());

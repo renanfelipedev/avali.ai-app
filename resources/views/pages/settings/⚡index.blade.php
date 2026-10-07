@@ -23,6 +23,8 @@ new #[Layout('layouts.main')] class extends Component
 
     public bool $allow_registration = true;
 
+    public bool $auto_activate_users = false;
+
     public bool $google_login_enabled = true;
 
     // Estado do teste do reCAPTCHA
@@ -52,6 +54,7 @@ new #[Layout('layouts.main')] class extends Component
         $this->recaptcha_secret_key = (string) SystemSetting::get('recaptcha_secret_key', config('services.recaptcha.secret_key', ''));
         $this->recaptcha_min_score = SystemSetting::getFloat('recaptcha_min_score', (float) config('services.recaptcha.min_score', 0.5));
         $this->allow_registration = SystemSetting::getBool('allow_registration', true);
+        $this->auto_activate_users = SystemSetting::getBool('auto_activate_users', false);
         $this->google_login_enabled = SystemSetting::getBool('google_login_enabled', true);
 
         // Geral
@@ -73,6 +76,7 @@ new #[Layout('layouts.main')] class extends Component
         SystemSetting::set('recaptcha_secret_key', trim($this->recaptcha_secret_key));
         SystemSetting::set('recaptcha_min_score', $this->recaptcha_min_score);
         SystemSetting::set('allow_registration', $this->allow_registration);
+        SystemSetting::set('auto_activate_users', $this->auto_activate_users);
         SystemSetting::set('google_login_enabled', $this->google_login_enabled);
 
         Log::info('Configurações de segurança atualizadas pelo administrador ID '.Auth::id());
@@ -295,6 +299,16 @@ new #[Layout('layouts.main')] class extends Component
                             </div>
                         </div>
                         <flux:switch wire:model="allow_registration" />
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
+                        <div>
+                            <div class="font-medium text-sm text-zinc-900 dark:text-white">Ativar novos usuários automaticamente</div>
+                            <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                                Quando ativado, os novos cadastros serão criados diretamente com status "Ativo" e poderão realizar login sem aguardar aprovação manual do administrador.
+                            </div>
+                        </div>
+                        <flux:switch wire:model="auto_activate_users" />
                     </div>
 
                     <div class="flex justify-end pt-4 border-t border-zinc-200 dark:border-zinc-800">

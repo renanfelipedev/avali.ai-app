@@ -1,6 +1,9 @@
 <?php
 
+use App\Enums\UserRole;
+use App\Models\Role;
 use App\Models\SystemSetting;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -139,4 +142,52 @@ test('registration is blocked when allow_registration is disabled in settings', 
     $postResp->assertSessionHas('warning');
 
     $this->assertDatabaseMissing('users', ['email' => 'bloqueado@example.com']);
+});
+
+test('registered user is active when auto_activate_users is enabled and receives teacher role only', function () {
+    SystemSetting::set('recaptcha_enabled', false);
+    SystemSetting::set('auto_activate_users', true);
+
+    Role::firstOrCreate(['slug' => 'teacher'], ['name' => 'Professor', 'description' => 'Professor']);
+    Role::firstOrCreate(['slug' => 'student'], ['name' => 'Estudante', 'description' => 'Estudante']);
+    Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Administrador', 'description' => 'Administrador']);
+
+    $response = $this->post(route('cadastro'), [
+        'name' => 'Professor Ativo',
+        'email' => 'ativo@example.com',
+        'password' => 'secret123',
+        'password_confirmation' => 'secret123',
+    ]);
+
+    $response->assertRedirect(route('login'));
+    $response->assertSessionHas('status', 'Cadastro realizado com sucesso! Sua conta já está ativa.');
+
+    $user = User::where('email', 'ativo@example.com')->first();
+    expect($user)->not->toBeNull();
+    expect($user->is_active)->toBeTrue();
+    expect($user->hasRole(UserRole::TEACHER))->toBeTrue();
+    expect($user->hasRole(UserRole::STUDENT))->toBeFalse();
+    expect($user->hasRole(UserRole::ADMIN))->toBeFalse();
+});
+
+test('registered user is inactive when auto_activate_users is disabled and receives teacher role', function () {
+    SystemSetting::set('recaptcha_enabled', false);
+    SystemSetting::set('auto_activate_users', false);
+
+    Role::firstOrCreate(['slug' => 'teacher'], ['name' => 'Professor', 'description' => 'Professor']);
+
+    $response = $this->post(route('cadastro'), [
+        'name' => 'Professor Pendente',
+        'email' => 'pendente@example.com',
+        'password' => 'secret123',
+        'password_confirmation' => 'secret123',
+    ]);
+
+    $response->assertRedirect(route('login'));
+    $response->assertSessionHas('status', 'Seu cadastro foi solicitado, aguarde autorização do administrador');
+
+    $user = User::where('email', 'pendente@example.com')->first();
+    expect($user)->not->toBeNull();
+    expect($user->is_active)->toBeFalse();
+    expect($user->hasRole(UserRole::TEACHER))->toBeTrue();
 });

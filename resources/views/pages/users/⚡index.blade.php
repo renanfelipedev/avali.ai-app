@@ -4,6 +4,8 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\SystemSetting;
+use App\Enums\UserRole;
 use Livewire\WithPagination;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
@@ -19,10 +21,21 @@ new #[Layout('layouts.main')] class extends Component {
     public ?User $editingUser = null;
     public $showUserModal = false;
 
+    public function mount(): void
+    {
+        abort_unless(auth()->user()?->can('admin'), 403);
+    }
+
     public function createUser()
     {
         $this->reset(['name', 'email', 'password', 'selectedRoles', 'editingUser']);
-        $this->is_active = true;
+        $this->is_active = SystemSetting::getBool('auto_activate_users', false);
+
+        $teacherRole = Role::where('slug', UserRole::TEACHER->value)->first();
+        if ($teacherRole) {
+            $this->selectedRoles = [(string) $teacherRole->id];
+        }
+
         $this->showUserModal = true;
     }
 
@@ -33,7 +46,21 @@ new #[Layout('layouts.main')] class extends Component {
         $this->email = $user->email;
         $this->password = '';
         $this->is_active = (bool) $user->is_active;
-        $this->selectedRoles = $user->roles->pluck('id')->map(fn($id) => (string) $id)->toArray();
+
+        $studentRole = Role::where('slug', UserRole::STUDENT->value)->first();
+        $userRoles = $user->roles;
+        if ($studentRole) {
+            $userRoles = $userRoles->where('id', '!=', $studentRole->id);
+        }
+
+        $this->selectedRoles = $userRoles->pluck('id')->map(fn($id) => (string) $id)->toArray();
+
+        if (empty($this->selectedRoles)) {
+            $teacherRole = Role::where('slug', UserRole::TEACHER->value)->first();
+            if ($teacherRole) {
+                $this->selectedRoles = [(string) $teacherRole->id];
+            }
+        }
 
         $this->showUserModal = true;
     }
@@ -52,7 +79,36 @@ new #[Layout('layouts.main')] class extends Component {
             $rules['password'] = 'nullable|min:8';
         }
 
-        $validated = $this->validate($rules);
+        $this->validate($rules);
+
+        // Descontinuar perfil de aluno: nunca atribuir este perfil
+        $studentRole = Role::where('slug', UserRole::STUDENT->value)->first();
+        if ($studentRole) {
+            $this->selectedRoles = array_values(array_filter(
+                $this->selectedRoles,
+                fn ($id) => (string) $id !== (string) $studentRole->id
+            ));
+        }
+
+        // Restringir perfil de administrador: somente usuários administradores podem conceder
+        $adminRole = Role::where('slug', UserRole::ADMIN->value)->first();
+        if ($adminRole && in_array((string) $adminRole->id, $this->selectedRoles, true)) {
+            if (! auth()->user()?->isAdmin()) {
+                abort(403, 'Apenas administradores podem atribuir o perfil de Administrador.');
+            }
+        }
+
+        // Se editingUser for admin e o usuário autenticado não for admin, bloquear alteração
+        if ($this->editingUser && $this->editingUser->isAdmin() && ! auth()->user()?->isAdmin()) {
+            abort(403, 'Apenas administradores podem gerenciar usuários administradores.');
+        }
+
+        if (empty($this->selectedRoles)) {
+            $teacherRole = Role::where('slug', UserRole::TEACHER->value)->first();
+            if ($teacherRole) {
+                $this->selectedRoles = [(string) $teacherRole->id];
+            }
+        }
 
         if ($this->editingUser) {
             $this->editingUser->update([
@@ -88,6 +144,10 @@ new #[Layout('layouts.main')] class extends Component {
             return;
         }
 
+        if ($user->isAdmin() && ! auth()->user()?->isAdmin()) {
+            abort(403, 'Apenas administradores podem excluir usuários administradores.');
+        }
+
         $user->delete();
         session()->flash('status', 'Usuário excluído com sucesso.');
     }
@@ -96,7 +156,7 @@ new #[Layout('layouts.main')] class extends Component {
     {
         return [
             'users' => User::with('roles')->paginate(10),
-            'allRoles' => Role::all(),
+            'allRoles' => Role::where('slug', '!=', UserRole::STUDENT->value)->get(),
         ];
     }
 };
@@ -184,8 +244,12 @@ new #[Layout('layouts.main')] class extends Component {
                     <flux:label>Perfis</flux:label>
                     <div class="grid grid-cols-2 gap-4">
                         @foreach ($allRoles as $role)
+                            @php
+                                $isAdminRole = $role->slug === \App\Enums\UserRole::ADMIN->value;
+                                $canAssign = ! $isAdminRole || (auth()->user()?->isAdmin() ?? false);
+                            @endphp
                             <flux:checkbox wire:model="selectedRoles" value="{{ $role->id }}"
-                                label="{{ $role->name }}" />
+                                label="{{ $role->name }}" :disabled="!$canAssign" />
                         @endforeach
                     </div>
                     @error('selectedRoles')

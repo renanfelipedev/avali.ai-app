@@ -22,6 +22,13 @@ new #[Layout('layouts.main')] class extends Component
 
     public bool $showCreateModal = false;
 
+    public function mount()
+    {
+        if (request()->boolean('criar') || request()->boolean('create') || request()->has('criar') || request()->has('create')) {
+            $this->showCreateModal = true;
+        }
+    }
+
     public function with(): array
     {
         return [
@@ -41,9 +48,6 @@ new #[Layout('layouts.main')] class extends Component
         ]);
 
         $this->reset(['name', 'subject', 'institution', 'description', 'showCreateModal']);
-        
-        // This closes the modal using Flux macro
-        $this->modal('create-classroom')->close();
         session()->flash('status', 'Turma criada com sucesso!');
     }
 
@@ -61,9 +65,7 @@ new #[Layout('layouts.main')] class extends Component
             <flux:subheading>Gerencie suas turmas e disciplinas</flux:subheading>
         </div>
         
-        <flux:modal.trigger name="create-classroom">
-            <flux:button variant="primary" icon="plus">Nova Turma</flux:button>
-        </flux:modal.trigger>
+        <flux:button wire:click="$set('showCreateModal', true)" variant="primary" icon="plus">Nova Turma</flux:button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -97,15 +99,13 @@ new #[Layout('layouts.main')] class extends Component
             <div class="col-span-full py-12 text-center text-zinc-500">
                 <flux:icon.academic-cap class="size-12 mx-auto mb-4 text-zinc-400" />
                 <p>Você ainda não cadastrou nenhuma turma.</p>
-                <flux:modal.trigger name="create-classroom">
-                    <flux:button variant="ghost" class="mt-4">Criar primeira turma</flux:button>
-                </flux:modal.trigger>
+                <flux:button wire:click="$set('showCreateModal', true)" variant="ghost" class="mt-4">Criar primeira turma</flux:button>
             </div>
         @endforelse
     </div>
 
     <!-- Create Modal -->
-    <flux:modal name="create-classroom" class="max-w-xl">
+    <flux:modal wire:model="showCreateModal" class="max-w-xl">
         <form wire:submit="save">
             <flux:heading size="lg" class="mb-6">Nova Turma</flux:heading>
             
@@ -120,9 +120,7 @@ new #[Layout('layouts.main')] class extends Component
             </div>
 
             <div class="mt-6 flex justify-end gap-3">
-                <flux:modal.close>
-                    <flux:button variant="ghost">Cancelar</flux:button>
-                </flux:modal.close>
+                <flux:button type="button" wire:click="$set('showCreateModal', false)" variant="ghost">Cancelar</flux:button>
                 <flux:button type="submit" variant="primary">Criar Turma</flux:button>
             </div>
         </form>

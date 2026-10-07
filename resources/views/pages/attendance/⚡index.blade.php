@@ -164,7 +164,7 @@ new #[Layout('layouts.main')] class extends Component {
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- FORM CARD TO START NEW SESSION -->
-        <div class="lg:col-span-1">
+        <div id="nova-chamada" class="lg:col-span-1" x-data x-init="if (window.location.search.includes('nova=1')) { $el.scrollIntoView({ behavior: 'smooth' }); }">
             <flux:card class="space-y-6">
                 <div>
                     <flux:heading size="lg">Iniciar Nova Chamada</flux:heading>

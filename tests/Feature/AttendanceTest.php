@@ -510,4 +510,3 @@ test('teacher can export attendance list as CSV', function () {
 
     $response->assertFileDownloaded();
 });
-

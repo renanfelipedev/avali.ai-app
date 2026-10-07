@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Rules\Recaptcha;
@@ -57,9 +59,22 @@ class RegisterController extends Controller
 
         unset($data['g-recaptcha-response']);
 
+        $autoActivate = SystemSetting::getBool('auto_activate_users', false);
+        $data['is_active'] = $autoActivate;
+
         $user = User::create($data);
 
-        session()->flash('status', 'Seu cadastro foi solicitado, aguarde autorização do administrador');
+        // Atribui perfil padrão de Professor (perfil de aluno não deve ser usado)
+        $teacherRole = Role::where('slug', UserRole::TEACHER->value)->first();
+        if ($teacherRole) {
+            $user->roles()->attach($teacherRole);
+        }
+
+        if ($autoActivate) {
+            session()->flash('status', 'Cadastro realizado com sucesso! Sua conta já está ativa.');
+        } else {
+            session()->flash('status', 'Seu cadastro foi solicitado, aguarde autorização do administrador');
+        }
 
         return to_route('login');
     }

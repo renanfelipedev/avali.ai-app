@@ -64,11 +64,13 @@ class AttendanceSession extends Model
             }
             $hours = floor($this->duration_minutes / 60);
             $min = $this->duration_minutes % 60;
+
             return $min > 0 ? "{$hours}h {$min}min" : "{$hours}h";
         }
         if ($this->duration_hours) {
             return "{$this->duration_hours}h";
         }
+
         return 'Sem limite';
     }
 

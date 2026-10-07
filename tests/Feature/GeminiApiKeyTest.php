@@ -239,7 +239,7 @@ test('system persists default model and fallback chain dynamically', function ()
     $service = app(GeminiApiKeyService::class);
 
     // Valor padrão inicial
-    expect($service->getDefaultModel())->toBe(config('gemini.default_model', 'gemini-2.5-flash'));
+    expect($service->getDefaultModel())->toBe(config('gemini.default_model', 'gemini-3.8-flash'));
 
     // Altera modelo padrão para uma nova versão (ex: gemini-2.0-flash)
     $service->setDefaultModel('gemini-2.0-flash');

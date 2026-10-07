@@ -31,10 +31,7 @@ jobs:
             composer install --no-dev --no-interaction --prefer-dist
             php artisan migrate --force
 
-            npm install
-            npm run build
-
-            php artisan optimize
+            php artisan optimize:clear
 
             php artisan queue:restart
             php artisan up

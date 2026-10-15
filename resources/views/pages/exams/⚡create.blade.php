@@ -16,6 +16,7 @@ new #[Layout('layouts.main')] class extends Component {
     public $topics = '';
     public $additional_criteria = '';
     public $files = [];
+    public $isSubmitting = false;
 
     protected $rules = [
         'title' => 'nullable|string|max:255',
@@ -29,48 +30,63 @@ new #[Layout('layouts.main')] class extends Component {
 
     public function save(ExamGenerationService $service)
     {
-        $this->validate();
-
-        if ($this->objective_count == 0 && $this->discursive_count == 0) {
-            $this->addError('objective_count', 'Pelo menos uma questão deve ser solicitada.');
-            return;
+        if ($this->isSubmitting) {
+            return null;
         }
 
-        $storedFiles = [];
-        foreach ($this->files as $file) {
-            $originalName = $file->getClientOriginalName();
-            $mimeType = $file->getMimeType();
-            $size = $file->getSize();
+        $this->isSubmitting = true;
 
-            $path = $file->store('supporting_materials', 'public');
+        try {
+            $this->validate();
 
-            $storedFiles[] = [
-                'path' => $path,
-                'original_name' => $originalName,
-                'mime_type' => $mimeType,
-                'size' => $size,
-            ];
+            if ($this->objective_count == 0 && $this->discursive_count == 0) {
+                $this->addError('objective_count', 'Pelo menos uma questão deve ser solicitada.');
+                $this->isSubmitting = false;
+                return null;
+            }
+
+            $storedFiles = [];
+            foreach ($this->files as $file) {
+                $originalName = $file->getClientOriginalName();
+                $mimeType = $file->getMimeType();
+                $size = $file->getSize();
+
+                $path = $file->store('supporting_materials', 'public');
+
+                $storedFiles[] = [
+                    'path' => $path,
+                    'original_name' => $originalName,
+                    'mime_type' => $mimeType,
+                    'size' => $size,
+                ];
+            }
+
+            $generationRequest = ExamGenerationRequest::create([
+                'user_id' => auth()->id(),
+                'classroom_id' => $this->classroom_id,
+                'title' => $this->title ?: null,
+                'questions_count' => $this->objective_count + $this->discursive_count,
+                'objective_count' => $this->objective_count,
+                'discursive_count' => $this->discursive_count,
+                'topics' => explode(',', $this->topics),
+                'additional_criteria' => $this->additional_criteria ?: null,
+                'supporting_materials' => $storedFiles,
+                'status' => 'pending',
+            ]);
+
+            // Dispatch background job
+            \App\Jobs\GenerateExamJob::dispatch($generationRequest);
+
+            session()->flash('status', 'A solicitação de geração de prova foi enviada para processamento em segundo plano.');
+
+            return redirect()->route('tasks.index');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->isSubmitting = false;
+            throw $e;
+        } catch (\Throwable $e) {
+            $this->isSubmitting = false;
+            throw $e;
         }
-
-        $generationRequest = ExamGenerationRequest::create([
-            'user_id' => auth()->id(),
-            'classroom_id' => $this->classroom_id,
-            'title' => $this->title ?: null,
-            'questions_count' => $this->objective_count + $this->discursive_count,
-            'objective_count' => $this->objective_count,
-            'discursive_count' => $this->discursive_count,
-            'topics' => explode(',', $this->topics),
-            'additional_criteria' => $this->additional_criteria ?: null,
-            'supporting_materials' => $storedFiles,
-            'status' => 'pending',
-        ]);
-
-        // Dispatch background job
-        \App\Jobs\GenerateExamJob::dispatch($generationRequest);
-
-        session()->flash('status', 'A solicitação de geração de prova foi enviada para processamento em segundo plano.');
-
-        return redirect()->route('tasks.index');
     }
     public function with(): array
     {
@@ -96,7 +112,7 @@ new #[Layout('layouts.main')] class extends Component {
         </div>
     @endif
 
-    <form wire:submit="save" class="space-y-8">
+    <form wire:submit="save" x-data="{ submitting: false }" @submit="if (submitting) { $event.preventDefault(); return false; } submitting = true" class="space-y-8">
         <!-- ETAPA 1: PARÂMETROS DA PROVA -->
         <section class="space-y-4">
             <div class="flex items-center gap-3 mb-2">
@@ -196,7 +212,7 @@ new #[Layout('layouts.main')] class extends Component {
                 </x-loading>
 
                 <flux:button type="submit" variant="primary" icon="sparkles" wire:loading.attr="disabled"
-                    wire:target="save" class="font-bold">
+                    wire:target="save" x-bind:disabled="submitting" class="font-bold">
                     <span wire:loading.remove wire:target="save">Solicitar Geração</span>
                     <span wire:loading wire:target="save">Processando...</span>
                 </flux:button>

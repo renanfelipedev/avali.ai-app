@@ -26,6 +26,11 @@ class ExamGenerationService
 
     public function generateExam(ExamGenerationRequest $request): bool
     {
+        $request->refresh();
+        if ($request->status === 'completed' || ! empty($request->generated_exam_id)) {
+            return true;
+        }
+
         $generatedText = null;
         $request->update(['status' => 'processing']);
 
@@ -95,6 +100,12 @@ class ExamGenerationService
                 throw new \Exception('O JSON retornado não contém o array de questões esperado.');
             }
 
+            // Double-check if another worker completed this request while AI was generating
+            $request->refresh();
+            if ($request->status === 'completed' && ! empty($request->generated_exam_id)) {
+                return true;
+            }
+
             // Create the Exam record (saved directly to DB)
             $exam = Exam::create([
                 'user_id' => $request->user_id,
@@ -114,15 +125,22 @@ class ExamGenerationService
                     'user_id' => $request->user_id,
                 ],
             ]);
-            // Update request status
-            $request->update(['status' => 'completed']);
+
+            // Update request status and associate generated exam
+            $request->update([
+                'status' => 'completed',
+                'generated_exam_id' => $exam->id,
+            ]);
 
             return true;
         } catch (Throwable $e) {
-            $request->update([
-                'status' => 'error',
-                'error_message' => 'Erro na geração: '.$e->getMessage(),
-            ]);
+            $request->refresh();
+            if ($request->status !== 'completed' && empty($request->generated_exam_id)) {
+                $request->update([
+                    'status' => 'error',
+                    'error_message' => 'Erro na geração: '.$e->getMessage(),
+                ]);
+            }
 
             $errorDetails = sprintf(
                 "❌ Falha na Geração da Prova\n\n".

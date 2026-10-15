@@ -27,6 +27,11 @@ class GenerateExamJob implements ShouldQueue
 
     public function handle(ExamGenerationService $service): void
     {
+        $this->request->refresh();
+        if ($this->request->status === 'completed' || ! empty($this->request->generated_exam_id)) {
+            return;
+        }
+
         $service->generateExam($this->request);
     }
 
@@ -35,9 +40,12 @@ class GenerateExamJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        $this->request->update([
-            'status' => 'error',
-            'error_message' => 'O processamento expirou ou falhou: '.$exception->getMessage(),
-        ]);
+        $this->request->refresh();
+        if ($this->request->status !== 'completed' && empty($this->request->generated_exam_id)) {
+            $this->request->update([
+                'status' => 'error',
+                'error_message' => 'O processamento expirou ou falhou: '.$exception->getMessage(),
+            ]);
+        }
     }
 }

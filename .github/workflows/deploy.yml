@@ -35,3 +35,4 @@ jobs:
 
             php artisan queue:restart
             php artisan up
+            npm run build

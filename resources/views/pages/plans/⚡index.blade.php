@@ -2,12 +2,24 @@
 
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\AsaasService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 new #[Layout('layouts.main')] class extends Component {
+    public bool $showCheckoutModal = false;
+    public ?Plan $selectedPlan = null;
+    public string $cpf = '';
+    public bool $isProcessingCheckout = false;
+    public ?string $paymentUrl = null;
+
+    public function mount(): void
+    {
+        $this->cpf = Auth::user()->cpf ?? '';
+    }
+
     public function with(): array
     {
         $user = Auth::user();
@@ -45,22 +57,102 @@ new #[Layout('layouts.main')] class extends Component {
             return;
         }
 
-        // Atualiza ou cria a assinatura do usuário (pronto para receber webhooks do Stripe/MercadoPago/Asaas)
-        Subscription::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'plan_id' => $plan->id,
-                'status' => 'active',
-                'gateway' => 'manual',
-                'current_period_start' => now(),
-                'current_period_end' => now()->addMonth(),
-            ]
-        );
+        // Se o plano for gratuito, altera diretamente
+        if ($plan->price_cents === 0) {
+            Subscription::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'plan_id' => $plan->id,
+                    'status' => 'active',
+                    'gateway' => 'manual',
+                    'current_period_start' => now(),
+                    'current_period_end' => null,
+                ]
+            );
 
-        Flux::toast(
-            heading: 'Plano Atualizado!',
-            text: "Seu plano foi alterado para {$plan->name}. Os novos limites e prioridades já estão ativos!"
-        );
+            Flux::toast(
+                heading: 'Plano Atualizado!',
+                text: "Seu plano foi alterado para {$plan->name}."
+            );
+            return;
+        }
+
+        // Para planos pagos, abre o modal de checkout com Asaas
+        $this->selectedPlan = $plan;
+        $this->cpf = $user->cpf ?? '';
+        $this->paymentUrl = null;
+        $this->showCheckoutModal = true;
+    }
+
+    public function confirmCheckout(AsaasService $asaasService): void
+    {
+        $user = Auth::user();
+
+        if (! $this->selectedPlan) {
+            return;
+        }
+
+        $this->validate([
+            'cpf' => ['required', 'string', 'min:11'],
+        ], [
+            'cpf.required' => 'Informe o CPF do titular para emissão da assinatura.',
+            'cpf.min' => 'O CPF informado está incompleto.',
+        ]);
+
+        $this->isProcessingCheckout = true;
+
+        try {
+            $cleanCpf = preg_replace('/\D/', '', $this->cpf);
+
+            // Atualiza CPF do usuário
+            $user->cpf = $cleanCpf;
+            $user->save();
+
+            // Atualiza ou cria cliente no Asaas
+            $asaasService->updateCustomer($user, ['cpfCnpj' => $cleanCpf]);
+
+            // Cria assinatura recorrente no Asaas
+            $subResponse = $asaasService->createSubscription($user, $this->selectedPlan);
+            $subId = $subResponse['id'] ?? null;
+
+            // Cria registro de assinatura pendente aguardando webhook de pagamento
+            Subscription::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'plan_id' => $this->selectedPlan->id,
+                    'status' => 'pending',
+                    'gateway' => 'asaas',
+                    'gateway_subscription_id' => $subId,
+                    'current_period_start' => now(),
+                    'current_period_end' => now()->addMonth(),
+                ]
+            );
+
+            // Recupera a primeira cobrança para pegar o link da fatura (Pix, Cartão, Boleto)
+            $payments = $asaasService->getSubscriptionPayments($subId);
+            $firstPayment = $payments[0] ?? null;
+
+            if ($firstPayment && ! empty($firstPayment['invoiceUrl'])) {
+                $this->paymentUrl = $firstPayment['invoiceUrl'];
+                // Redireciona para o checkout do Asaas
+                $this->redirect($this->paymentUrl);
+                return;
+            }
+
+            $this->showCheckoutModal = false;
+            Flux::toast(
+                heading: 'Assinatura Iniciada!',
+                text: 'Sua assinatura foi criada. Assim que o pagamento for aprovado, seu plano será ativado!'
+            );
+        } catch (\Exception $e) {
+            Flux::toast(
+                variant: 'danger',
+                heading: 'Erro no Checkout',
+                text: $e->getMessage()
+            );
+        } finally {
+            $this->isProcessingCheckout = false;
+        }
     }
 };
 ?>
@@ -156,35 +248,47 @@ new #[Layout('layouts.main')] class extends Component {
         </div>
     </flux:card>
 
-    <!-- CARDS DE PLANOS -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <!-- GRID DE PLANOS -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
         @foreach($plans as $plan)
             @php
                 $isCurrent = $currentPlan->id === $plan->id;
             @endphp
-            <div class="relative flex flex-col justify-between rounded-3xl border {{ $plan->is_featured ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-gradient-to-b from-indigo-50/20 to-transparent dark:from-indigo-950/10' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900' }} p-8 shadow-sm transition-all hover:shadow-md">
+            <div class="relative flex flex-col justify-between rounded-3xl p-6 sm:p-8 transition-all duration-300
+                {{ $plan->is_featured ? 'bg-white dark:bg-zinc-900 border-2 border-indigo-500 shadow-xl shadow-indigo-500/10 scale-[1.02]' : 'bg-white/80 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700' }}
+                {{ $isCurrent ? 'ring-2 ring-emerald-500/50' : '' }}">
+
                 @if($plan->is_featured)
                     <div class="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                        <span class="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-3 py-1 text-xs font-black uppercase tracking-wider text-white shadow-sm">
-                            <flux:icon.sparkles class="w-3.5 h-3.5" /> Mais Popular
+                        <span class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-[11px] font-black uppercase tracking-widest px-3.5 py-1 rounded-full shadow-md">
+                            Mais Escolhido
                         </span>
                     </div>
                 @endif
 
                 <div>
-                    <!-- Nome e Preço -->
-                    <div class="mb-6">
-                        <flux:heading size="lg" class="font-extrabold text-zinc-900 dark:text-zinc-50">{{ $plan->name }}</flux:heading>
-                        <p class="text-xs text-zinc-500 mt-1 min-h-[32px]">{{ $plan->description }}</p>
-                        
-                        <div class="mt-4 flex items-baseline gap-1">
-                            <span class="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-                                {{ $plan->formattedPrice() }}
-                            </span>
-                            @if($plan->price_cents > 0)
-                                <span class="text-xs font-medium text-zinc-500">/ mês</span>
+                    <!-- Cabeçalho do Card -->
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <flux:heading size="lg" class="font-extrabold">{{ $plan->name }}</flux:heading>
+                            <p class="text-xs text-zinc-500 mt-1 line-clamp-2">{{ $plan->description }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Preço -->
+                    <div class="my-6">
+                        <div class="flex items-baseline gap-1">
+                            @if($plan->price_cents === 0)
+                                <span class="text-4xl font-black text-zinc-900 dark:text-white">Grátis</span>
+                            @else
+                                <span class="text-2xl font-bold text-zinc-500">R$</span>
+                                <span class="text-4xl font-black text-zinc-900 dark:text-white">
+                                    {{ number_format($plan->price_cents / 100, 2, ',', '.') }}
+                                </span>
+                                <span class="text-xs text-zinc-500 font-medium">/ mês</span>
                             @endif
                         </div>
+                        <p class="text-[11px] text-zinc-400 mt-1">Cancele quando quiser, sem fidelidade.</p>
                     </div>
 
                     <!-- Lista de Recursos -->
@@ -269,11 +373,47 @@ new #[Layout('layouts.main')] class extends Component {
                         <flux:button wire:click="selectPlan({{ $plan->id }})" wire:loading.attr="disabled"
                             variant="{{ $plan->is_featured ? 'primary' : 'filled' }}"
                             class="w-full font-bold">
-                            {{ $plan->price_cents === 0 ? 'Mudar para Grátis' : ($isCurrent ? 'Plano Atual' : 'Selecionar Plano') }}
+                            {{ $plan->price_cents === 0 ? 'Mudar para Grátis' : ($isCurrent ? 'Plano Atual' : 'Assinar Plano') }}
                         </flux:button>
                     @endif
                 </div>
             </div>
         @endforeach
     </div>
+
+    <!-- MODAL DE CHECKOUT COM ASAAS -->
+    <flux:modal wire:model="showCheckoutModal" class="md:w-[500px]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg" class="font-extrabold">Finalizar Assinatura</flux:heading>
+                <flux:subheading>
+                    Você está prestes a assinar o plano <strong>{{ $selectedPlan?->name }}</strong> por
+                    <strong>R$ {{ number_format(($selectedPlan?->price_cents ?? 0) / 100, 2, ',', '.') }} / mês</strong>.
+                </flux:subheading>
+            </div>
+
+            <form wire:submit="confirmCheckout" class="space-y-4">
+                <flux:input wire:model="cpf" label="CPF do Titular" placeholder="000.000.000-00" required
+                    description="Obrigatório para emissão de cobrança e notas fiscais pelo Asaas (Pix, Cartão ou Boleto)." />
+
+                <div class="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-700 dark:text-indigo-300 space-y-1">
+                    <p class="font-bold flex items-center gap-1.5">
+                        <flux:icon.shield-check class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        Pagamento Seguro via Asaas Gateway
+                    </p>
+                    <p>Você poderá escolher pagar via <strong>Pix com ativação instantânea</strong>, Cartão de Crédito ou Boleto bancário.</p>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <flux:button type="button" wire:click="$set('showCheckoutModal', false)" variant="ghost">
+                        Cancelar
+                    </flux:button>
+                    <flux:button type="submit" variant="primary" wire:loading.attr="disabled" class="font-bold">
+                        <span wire:loading.remove wire:target="confirmCheckout">Ir para Pagamento Seguro</span>
+                        <span wire:loading wire:target="confirmCheckout">Gerando Cobrança...</span>
+                    </flux:button>
+                </div>
+            </form>
+        </div>
+    </flux:modal>
 </div>

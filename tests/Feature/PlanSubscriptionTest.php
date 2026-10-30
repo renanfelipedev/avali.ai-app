@@ -87,7 +87,7 @@ test('school plan has vip priority and allows classroom', function () {
         ->and($user->canGenerateExam())->toBeTrue(); // unlimited
 });
 
-test('plans page displays plan options and allows user to switch plan', function () {
+test('plans page displays plan options and opens checkout modal for paid plan', function () {
     $user = User::factory()->create();
     $proPlan = Plan::where('slug', 'pro')->first();
 
@@ -97,9 +97,29 @@ test('plans page displays plan options and allows user to switch plan', function
         ->assertSee('Gratuito (Starter)')
         ->assertSee('Professor Pro')
         ->assertSee('Institucional (Escolas)')
-        ->call('selectPlan', $proPlan->id);
+        ->call('selectPlan', $proPlan->id)
+        ->assertSet('showCheckoutModal', true)
+        ->assertSet('selectedPlan.id', $proPlan->id);
+});
 
-    expect($user->fresh()->currentPlan()->slug)->toBe('pro');
+test('plans page allows user to directly switch to free plan', function () {
+    $user = User::factory()->create();
+    $proPlan = Plan::where('slug', 'pro')->first();
+    $freePlan = Plan::where('slug', 'free')->first();
+
+    // Start on Pro
+    Subscription::create([
+        'user_id' => $user->id,
+        'plan_id' => $proPlan->id,
+        'status' => 'active',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::plans.index')
+        ->call('selectPlan', $freePlan->id)
+        ->assertSet('showCheckoutModal', false);
+
+    expect($user->fresh()->currentPlan()->slug)->toBe('free');
 });
 
 test('exams create page warns when exam limit is exceeded', function () {

@@ -30,6 +30,7 @@ jobs:
 
             composer install --no-dev --no-interaction --prefer-dist
             php artisan migrate --force
+            php artisan db:seed --force
 
             php artisan optimize:clear
 

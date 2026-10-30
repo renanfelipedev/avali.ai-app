@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\Plan;
 use App\Models\Role;
 use App\Models\SystemSetting;
 use App\Models\User;
+use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -134,4 +136,21 @@ test('admin can delete another user', function () {
         ->call('deleteUser', $this->teacher);
 
     expect(User::find($this->teacher->id))->toBeNull();
+});
+
+test('admin can view and update user plan in user management', function () {
+    $this->seed(PlanSeeder::class);
+    $this->actingAs($this->admin);
+
+    $proPlan = Plan::where('slug', 'pro')->first();
+
+    Livewire::test('pages::users.index')
+        ->assertSee('Plano')
+        ->assertSee('Gratuito (Starter)')
+        ->call('openPlanModal', $this->teacher->id)
+        ->assertSet('managingPlanUser.id', $this->teacher->id)
+        ->set('newPlanId', $proPlan->id)
+        ->call('updatePlan');
+
+    expect($this->teacher->fresh()->currentPlan()->slug)->toBe('pro');
 });

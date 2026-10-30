@@ -4,11 +4,14 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\SystemSetting;
 use App\Enums\UserRole;
 use Livewire\WithPagination;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
+use Flux\Flux;
 
 new #[Layout('layouts.main')] class extends Component {
     use WithPagination;
@@ -18,8 +21,14 @@ new #[Layout('layouts.main')] class extends Component {
     public $password = '';
     public $is_active = true;
     public $selectedRoles = [];
+    public ?int $selectedPlanId = null;
     public ?User $editingUser = null;
     public $showUserModal = false;
+
+    // Modal de alteração rápida de plano
+    public ?User $managingPlanUser = null;
+    public ?int $newPlanId = null;
+    public $showPlanModal = false;
 
     public function mount(): void
     {
@@ -28,13 +37,16 @@ new #[Layout('layouts.main')] class extends Component {
 
     public function createUser()
     {
-        $this->reset(['name', 'email', 'password', 'selectedRoles', 'editingUser']);
+        $this->reset(['name', 'email', 'password', 'selectedRoles', 'selectedPlanId', 'editingUser']);
         $this->is_active = SystemSetting::getBool('auto_activate_users', false);
 
         $teacherRole = Role::where('slug', UserRole::TEACHER->value)->first();
         if ($teacherRole) {
             $this->selectedRoles = [(string) $teacherRole->id];
         }
+
+        $freePlan = Plan::free();
+        $this->selectedPlanId = $freePlan?->id;
 
         $this->showUserModal = true;
     }
@@ -46,6 +58,7 @@ new #[Layout('layouts.main')] class extends Component {
         $this->email = $user->email;
         $this->password = '';
         $this->is_active = (bool) $user->is_active;
+        $this->selectedPlanId = $user->currentPlan()->id;
 
         $studentRole = Role::where('slug', UserRole::STUDENT->value)->first();
         $userRoles = $user->roles;
@@ -63,6 +76,42 @@ new #[Layout('layouts.main')] class extends Component {
         }
 
         $this->showUserModal = true;
+    }
+
+    public function openPlanModal(User $user)
+    {
+        $this->managingPlanUser = $user;
+        $this->newPlanId = $user->currentPlan()->id;
+        $this->showPlanModal = true;
+    }
+
+    public function updatePlan()
+    {
+        if (! $this->managingPlanUser || ! $this->newPlanId) {
+            return;
+        }
+
+        $plan = Plan::findOrFail($this->newPlanId);
+
+        Subscription::updateOrCreate(
+            ['user_id' => $this->managingPlanUser->id],
+            [
+                'plan_id' => $plan->id,
+                'status' => 'active',
+                'gateway' => 'admin_manual',
+                'current_period_start' => now(),
+                'current_period_end' => now()->addYear(),
+            ]
+        );
+
+        Flux::toast(
+            heading: 'Plano Atualizado!',
+            text: "O plano de {$this->managingPlanUser->name} foi alterado para {$plan->name}."
+        );
+
+        $this->showPlanModal = false;
+        $this->managingPlanUser = null;
+        $this->newPlanId = null;
     }
 
     public function save()
@@ -132,9 +181,26 @@ new #[Layout('layouts.main')] class extends Component {
         }
 
         $user->roles()->sync($this->selectedRoles);
+
+        if ($this->selectedPlanId) {
+            $plan = Plan::find($this->selectedPlanId);
+            if ($plan) {
+                Subscription::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'plan_id' => $plan->id,
+                        'status' => 'active',
+                        'gateway' => 'admin_manual',
+                        'current_period_start' => now(),
+                        'current_period_end' => now()->addYear(),
+                    ]
+                );
+            }
+        }
+
         session()->flash('status', $this->editingUser ? 'Usuário atualizado com sucesso.' : 'Usuário criado com sucesso.');
 
-        $this->reset(['name', 'email', 'password', 'selectedRoles', 'editingUser', 'showUserModal']);
+        $this->reset(['name', 'email', 'password', 'selectedRoles', 'selectedPlanId', 'editingUser', 'showUserModal']);
     }
 
     public function deleteUser(User $user)
@@ -155,8 +221,9 @@ new #[Layout('layouts.main')] class extends Component {
     public function with()
     {
         return [
-            'users' => User::with('roles')->orderBy('name', 'asc')->paginate(10),
+            'users' => User::with(['roles', 'subscriptions.plan'])->orderBy('name', 'asc')->paginate(10),
             'allRoles' => Role::where('slug', '!=', UserRole::STUDENT->value)->orderBy('name', 'asc')->get(),
+            'allPlans' => Plan::where('is_active', true)->orderBy('sort_order', 'asc')->get(),
         ];
     }
 };
@@ -175,12 +242,21 @@ new #[Layout('layouts.main')] class extends Component {
                 <flux:table.column>Nome</flux:table.column>
                 <flux:table.column>E-mail</flux:table.column>
                 <flux:table.column>Perfil</flux:table.column>
+                <flux:table.column>Plano</flux:table.column>
                 <flux:table.column>Status</flux:table.column>
                 <flux:table.column>Ações</flux:table.column>
             </flux:table.columns>
 
             <flux:table.rows>
                 @forelse ($users as $user)
+                    @php
+                        $userPlan = $user->currentPlan();
+                        $badgeColor = match($userPlan->slug) {
+                            'school' => 'purple',
+                            'pro' => 'indigo',
+                            default => 'zinc',
+                        };
+                    @endphp
                     <flux:table.row :key="$user->id">
                         <flux:table.cell>
                             <span class="font-medium text-zinc-900 dark:text-white">{{ $user->name }}</span>
@@ -196,6 +272,14 @@ new #[Layout('layouts.main')] class extends Component {
                             </div>
                         </flux:table.cell>
                         <flux:table.cell>
+                            <button wire:click="openPlanModal({{ $user->id }})" type="button" class="group inline-flex items-center gap-1.5 focus:outline-none">
+                                <flux:badge size="sm" :color="$badgeColor" class="cursor-pointer group-hover:opacity-80 transition-opacity">
+                                    <flux:icon.credit-card class="w-3 h-3 me-1" />
+                                    {{ $userPlan->name }}
+                                </flux:badge>
+                            </button>
+                        </flux:table.cell>
+                        <flux:table.cell>
                             @if ($user->is_active)
                                 <flux:badge size="sm" color="green">Ativo</flux:badge>
                             @else
@@ -204,14 +288,15 @@ new #[Layout('layouts.main')] class extends Component {
                         </flux:table.cell>
                         <flux:table.cell>
                             <div class="flex items-center gap-2">
-                                <flux:button wire:click="editUser({{ $user->id }})" size="sm" variant="ghost" icon="pencil-square" />
+                                <flux:button wire:click="openPlanModal({{ $user->id }})" title="Alterar Plano" size="sm" variant="ghost" icon="credit-card" />
+                                <flux:button wire:click="editUser({{ $user->id }})" title="Editar Usuário" size="sm" variant="ghost" icon="pencil-square" />
                                 <flux:button wire:click="deleteUser({{ $user->id }})" wire:confirm="Tem certeza que deseja excluir este usuário?" size="sm" variant="ghost" icon="trash" color="danger" />
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="5" class="text-center py-6 text-zinc-500">
+                        <flux:table.cell colspan="6" class="text-center py-6 text-zinc-500">
                             Nenhum usuário encontrado.
                         </flux:table.cell>
                     </flux:table.row>
@@ -257,6 +342,16 @@ new #[Layout('layouts.main')] class extends Component {
                     @enderror
                 </div>
 
+                <div class="space-y-2">
+                    <flux:select wire:model="selectedPlanId" label="Plano do Usuário">
+                        @foreach ($allPlans as $plan)
+                            <flux:select.option value="{{ $plan->id }}">
+                                {{ $plan->name }} ({{ $plan->formattedPrice() }})
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+
                 <flux:switch wire:model="is_active" label="Usuário Ativo" />
 
                 <div class="flex justify-end space-x-3 mt-6">
@@ -264,6 +359,49 @@ new #[Layout('layouts.main')] class extends Component {
                         <flux:button variant="ghost">Cancelar</flux:button>
                     </flux:modal.close>
                     <flux:button type="submit" variant="primary">Salvar</flux:button>
+                </div>
+            </form>
+        </div>
+    </flux:modal>
+
+    <!-- MODAL DE ALTERAÇÃO RÁPIDA DE PLANO -->
+    <flux:modal wire:model="showPlanModal" class="md:w-[480px]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Alterar Plano de Usuário</flux:heading>
+                <flux:subheading>
+                    Atualize a assinatura e libere cotas e recursos para 
+                    <strong class="text-zinc-900 dark:text-white">{{ $managingPlanUser?->name }}</strong>.
+                </flux:subheading>
+            </div>
+
+            @if ($managingPlanUser)
+                <div class="p-3 bg-zinc-50 dark:bg-zinc-800/60 rounded-xl border border-zinc-200 dark:border-zinc-700/60 text-sm space-y-1">
+                    <div class="flex justify-between items-center">
+                        <span class="text-zinc-500">Plano Atual:</span>
+                        <flux:badge size="sm" color="indigo" class="font-bold">{{ $managingPlanUser->currentPlan()->name }}</flux:badge>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-zinc-500 pt-1">
+                        <span>Uso no Mês Atual:</span>
+                        <span>{{ $managingPlanUser->getCurrentMonthExamsCount() }} provas / {{ $managingPlanUser->getCurrentMonthSubmissionsCount() }} correções</span>
+                    </div>
+                </div>
+            @endif
+
+            <form wire:submit="updatePlan" class="space-y-4">
+                <flux:select wire:model="newPlanId" label="Selecione o Novo Plano" required>
+                    @foreach ($allPlans as $plan)
+                        <flux:select.option value="{{ $plan->id }}">
+                            {{ $plan->name }} ({{ $plan->formattedPrice() }})
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <div class="flex justify-end space-x-3 mt-6">
+                    <flux:modal.close>
+                        <flux:button variant="ghost">Cancelar</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary">Confirmar Alteração</flux:button>
                 </div>
             </form>
         </div>

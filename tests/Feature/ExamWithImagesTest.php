@@ -3,9 +3,12 @@
 use App\Jobs\GenerateExamJob;
 use App\Models\Exam;
 use App\Models\ExamGenerationRequest;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Services\AiService;
 use App\Services\ExamGenerationService;
+use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -18,10 +21,10 @@ test('teacher can upload question images when creating an exam request', functio
     Storage::fake('public');
     Queue::fake();
 
-    $this->seed(\Database\Seeders\PlanSeeder::class);
+    $this->seed(PlanSeeder::class);
     $user = User::factory()->create();
-    $proPlan = \App\Models\Plan::where('slug', 'pro')->first();
-    \App\Models\Subscription::create([
+    $proPlan = Plan::where('slug', 'pro')->first();
+    Subscription::create([
         'user_id' => $user->id,
         'plan_id' => $proPlan->id,
         'status' => 'active',

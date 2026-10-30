@@ -61,6 +61,8 @@ class Exam extends Model
 
                 $q['number'] = $counter++;
                 $q['text'] = $q['statement'] ?? '';
+                $q['image_path'] = $q['image_path'] ?? null;
+                $q['image_caption'] = $q['image_caption'] ?? null;
 
                 if (($q['type'] ?? '') === 'objective') {
                     $q['answer'] = $q['correct_answer'] ?? '';

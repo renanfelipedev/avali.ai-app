@@ -68,6 +68,22 @@
             margin-bottom: 6px;
             color: #1f2937;
         }
+        .question-image-box {
+            text-align: center;
+            margin: 8px 0 12px 0;
+            page-break-inside: avoid;
+        }
+        .question-image-box img {
+            max-height: 220px;
+            max-width: 85%;
+            border: 1px solid #d1d5db;
+        }
+        .question-image-caption {
+            font-size: 9px;
+            color: #4b5563;
+            font-style: italic;
+            margin-top: 3px;
+        }
         .question-text {
             margin-bottom: 10px;
             color: #374151;
@@ -213,6 +229,14 @@
             @foreach($jsonData['objective_questions'] as $index => $q)
                 <div class="question">
                     <div class="question-header">Questão {{ $q['number'] ?? ($index + 1) }}</div>
+                    @if(!empty($q['image_path']) && Storage::disk('public')->exists($q['image_path']))
+                        <div class="question-image-box">
+                            <img src="{{ Storage::disk('public')->path($q['image_path']) }}" alt="Imagem" />
+                            @if(!empty($q['image_caption']))
+                                <div class="question-image-caption">{{ $q['image_caption'] }}</div>
+                            @endif
+                        </div>
+                    @endif
                     <div class="question-text">{{ $q['text'] }}</div>
                     <div class="options-list">
                         @foreach($q['options'] ?? [] as $key => $option)
@@ -232,6 +256,14 @@
             @foreach($jsonData['discursive_questions'] as $index => $q)
                 <div class="question">
                     <div class="question-header">Questão {{ $q['number'] ?? ($index + 1) }}</div>
+                    @if(!empty($q['image_path']) && Storage::disk('public')->exists($q['image_path']))
+                        <div class="question-image-box">
+                            <img src="{{ Storage::disk('public')->path($q['image_path']) }}" alt="Imagem" />
+                            @if(!empty($q['image_caption']))
+                                <div class="question-image-caption">{{ $q['image_caption'] }}</div>
+                            @endif
+                        </div>
+                    @endif
                     <div class="question-text">{{ $q['text'] }}</div>
                     <div class="discursive-answer-lines">
                         <div class="discursive-line"></div>

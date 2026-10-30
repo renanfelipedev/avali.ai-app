@@ -46,6 +46,11 @@ class ExamWordController extends Controller
                 $number = $q['number'] ?? ($index + 1);
                 $textContent .= $number.'. '.($q['text'] ?? '')."\n";
 
+                if (! empty($q['image_path'])) {
+                    $caption = ! empty($q['image_caption']) ? " ({$q['image_caption']})" : '';
+                    $textContent .= "   [Figura/Imagem{$caption}]\n";
+                }
+
                 if (isset($q['options']) && is_array($q['options'])) {
                     $letterIndex = 0;
                     foreach ($q['options'] as $key => $option) {
@@ -64,6 +69,11 @@ class ExamWordController extends Controller
             foreach ($jsonData['discursive_questions'] as $index => $q) {
                 $number = $q['number'] ?? ($index + 1);
                 $textContent .= $number.'. '.($q['text'] ?? '')."\n";
+
+                if (! empty($q['image_path'])) {
+                    $caption = ! empty($q['image_caption']) ? " ({$q['image_caption']})" : '';
+                    $textContent .= "   [Figura/Imagem{$caption}]\n";
+                }
 
                 // Linhas para o aluno responder
                 for ($i = 0; $i < 5; $i++) {

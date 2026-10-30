@@ -7,6 +7,7 @@ use App\Models\ExamSubmission;
 use App\Services\ExamGradingService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Facades\Log;
 
 class EvaluateSubmissionJob implements ShouldQueue
@@ -34,6 +35,16 @@ class EvaluateSubmissionJob implements ShouldQueue
         public ExamEvaluation $evaluation,
         public ExamSubmission $submission
     ) {}
+
+    /**
+     * Get the middleware the job should pass through.
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [new RateLimited('gemini-api')];
+    }
 
     /**
      * Execute the job.

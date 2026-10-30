@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Exam;
 use App\Models\ExamGenerationRequest;
+use App\Models\SystemSetting;
 use App\Services\ExamGenerationService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -15,6 +17,7 @@ new #[Layout('layouts.main')] class extends Component {
     public $discursive_count = 2;
     public $topics = '';
     public $additional_criteria = '';
+    public $question_images = [];
     public $files = [];
     public $isSubmitting = false;
 
@@ -25,8 +28,22 @@ new #[Layout('layouts.main')] class extends Component {
         'discursive_count' => 'required|integer|min:0|max:50',
         'topics' => 'required|string',
         'additional_criteria' => 'nullable|string',
+        'question_images.*' => 'nullable|image|max:10240', // 10MB max per image
         'files.*' => 'nullable|file|max:10240', // 10MB max per file
     ];
+
+    public function removeQuestionImage(int $index): void
+    {
+        if (isset($this->question_images[$index])) {
+            unset($this->question_images[$index]);
+            $this->question_images = array_values($this->question_images);
+        }
+    }
+
+    public function clearQuestionImages(): void
+    {
+        $this->question_images = [];
+    }
 
     public function save(ExamGenerationService $service)
     {
@@ -39,6 +56,19 @@ new #[Layout('layouts.main')] class extends Component {
         try {
             $this->validate();
 
+            $dailyLimit = (int) SystemSetting::get('daily_exam_limit_per_teacher', 20);
+            if (! auth()->user()->isAdmin()) {
+                $todayCount = Exam::where('user_id', auth()->id())
+                    ->whereDate('created_at', today())
+                    ->count();
+
+                if ($todayCount >= $dailyLimit) {
+                    $this->addError('title', "Você atingiu seu limite diário de {$dailyLimit} provas geradas por professor. Tente novamente amanhã ou fale com um administrador.");
+                    $this->isSubmitting = false;
+                    return null;
+                }
+            }
+
             if ($this->objective_count == 0 && $this->discursive_count == 0) {
                 $this->addError('objective_count', 'Pelo menos uma questão deve ser solicitada.');
                 $this->isSubmitting = false;
@@ -46,18 +76,32 @@ new #[Layout('layouts.main')] class extends Component {
             }
 
             $storedFiles = [];
-            foreach ($this->files as $file) {
-                $originalName = $file->getClientOriginalName();
-                $mimeType = $file->getMimeType();
-                $size = $file->getSize();
 
-                $path = $file->store('supporting_materials', 'public');
+            // Armazena imagens específicas para questões (tirinhas, charges, fotos, gráficos)
+            foreach ($this->question_images as $image) {
+                $path = $image->store('exam_images', 'public');
 
                 $storedFiles[] = [
                     'path' => $path,
-                    'original_name' => $originalName,
+                    'original_name' => $image->getClientOriginalName(),
+                    'mime_type' => $image->getMimeType(),
+                    'size' => $image->getSize(),
+                    'is_question_image' => true,
+                ];
+            }
+
+            // Armazena documentos de apoio gerais (PDFs, textos)
+            foreach ($this->files as $file) {
+                $mimeType = $file->getMimeType();
+                $isImage = str_starts_with($mimeType, 'image/');
+                $path = $file->store($isImage ? 'exam_images' : 'supporting_materials', 'public');
+
+                $storedFiles[] = [
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
                     'mime_type' => $mimeType,
-                    'size' => $size,
+                    'size' => $file->getSize(),
+                    'is_question_image' => $isImage,
                 ];
             }
 
@@ -158,38 +202,105 @@ new #[Layout('layouts.main')] class extends Component {
             </flux:card>
         </section>
 
-        <!-- ETAPA 3: MATERIAIS DE APOIO -->
+        <!-- ETAPA 3: IMAGENS E TIRINHAS PARA QUESTÕES -->
         <section class="space-y-4">
             <div class="flex items-center gap-3 mb-2">
                 <flux:badge color="indigo" class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">3</flux:badge>
                 <div>
-                    <flux:heading size="lg" class="font-bold">Materiais de Apoio (Opcional)</flux:heading>
-                    <flux:subheading>Envie livros, artigos, capítulos ou provas antigas em PDF para guiar a IA na geração das questões.</flux:subheading>
+                    <flux:heading size="lg" class="font-bold">Imagens e Tirinhas para as Questões (Opcional)</flux:heading>
+                    <flux:subheading>Envie uma ou mais imagens (tirinhas, charges, ilustrações ou gráficos). O Gemini analisará visualmente as imagens e formulará questões contextualizadas sobre elas.</flux:subheading>
                 </div>
             </div>
 
-            <flux:card class="border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/10 dark:bg-indigo-950/5 shadow-sm">
-                <div class="flex flex-col items-center justify-center py-6 text-center space-y-6">
+            <flux:card class="border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/10 dark:bg-indigo-950/5 shadow-sm space-y-6">
+                <div class="flex flex-col items-center justify-center py-4 text-center space-y-4">
                     <div class="p-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 border border-indigo-200 dark:border-indigo-800 shadow-sm">
+                        <flux:icon.photo class="w-10 h-10" />
+                    </div>
+
+                    <div class="w-full max-w-xl mx-auto space-y-3 px-4">
+                        <flux:input type="file" wire:model="question_images" multiple accept="image/png,image/jpeg,image/webp,image/gif"
+                            label="Selecionar Imagens / Tirinhas" help="Selecione imagens em PNG, JPG ou WEBP (até 10MB cada)." />
+
+                        <div wire:loading wire:target="question_images" class="text-xs text-indigo-600 font-medium">
+                            Enviando imagens selecionadas...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Grid das Imagens Selecionadas -->
+                @if ($question_images)
+                    <div class="border-t border-indigo-100 dark:border-indigo-900/40 pt-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                                {{ count($question_images) }} imagem(ns) selecionada(s) para compor a prova:
+                            </span>
+                            <flux:button wire:click="clearQuestionImages" size="xs" variant="ghost" color="indigo" class="font-extrabold">
+                                Remover Todas
+                            </flux:button>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            @foreach ($question_images as $index => $img)
+                                <div class="relative group bg-white dark:bg-zinc-950/60 p-3 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 shadow-sm space-y-2">
+                                    <div class="relative overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900 aspect-video flex items-center justify-center border border-zinc-200 dark:border-zinc-800">
+                                        @if(method_exists($img, 'temporaryUrl'))
+                                            <img src="{{ $img->temporaryUrl() }}" alt="Preview da Imagem {{ $index + 1 }}" class="h-full w-full object-contain" />
+                                        @else
+                                            <flux:icon.photo class="w-8 h-8 text-zinc-400" />
+                                        @endif
+                                        <flux:badge size="xs" color="indigo" class="absolute top-2 left-2 shadow">
+                                            Imagem {{ $index + 1 }}
+                                        </flux:badge>
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs pt-1">
+                                        <span class="truncate font-medium text-zinc-700 dark:text-zinc-300 max-w-[140px]" title="{{ $img->getClientOriginalName() }}">
+                                            {{ $img->getClientOriginalName() }}
+                                        </span>
+                                        <button type="button" wire:click="removeQuestionImage({{ $index }})" class="text-rose-500 hover:text-rose-700 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors" title="Remover imagem">
+                                            <flux:icon.trash class="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            </flux:card>
+        </section>
+
+        <!-- ETAPA 4: MATERIAIS DE APOIO GERAIS -->
+        <section class="space-y-4">
+            <div class="flex items-center gap-3 mb-2">
+                <flux:badge color="indigo" class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">4</flux:badge>
+                <div>
+                    <flux:heading size="lg" class="font-bold">Documentos e Textos de Apoio (Opcional)</flux:heading>
+                    <flux:subheading>Envie livros, artigos, capítulos ou provas antigas em PDF para contextualizar a IA na geração geral.</flux:subheading>
+                </div>
+            </div>
+
+            <flux:card class="border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/10 shadow-sm">
+                <div class="flex flex-col items-center justify-center py-6 text-center space-y-6">
+                    <div class="p-4 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 border border-zinc-200 dark:border-zinc-700 shadow-sm">
                         <flux:icon.cloud-arrow-up class="w-10 h-10" />
                     </div>
 
                     <div class="w-full max-w-xl mx-auto space-y-4 px-4">
-                        <flux:input type="file" wire:model="files" multiple accept=".pdf,.docx,image/*"
-                            label="Selecionar Arquivos" help="Selecione múltiplos arquivos até 10MB cada." />
+                        <flux:input type="file" wire:model="files" multiple accept=".pdf,.docx,.txt"
+                            label="Selecionar Documentos" help="Selecione arquivos PDF ou DOCX de até 10MB cada." />
 
                         <!-- Queue File list -->
                         @if ($files)
-                            <div class="mt-4 p-4 rounded-2xl bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 text-xs text-indigo-700 dark:text-indigo-300 space-y-2.5 max-h-48 overflow-y-auto shadow-inner animate-fade-in text-left">
-                                <div class="font-bold flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/40 pb-2">
-                                    <span>{{ count($files) }} arquivos anexados:</span>
-                                    <flux:button wire:click="$set('files', [])" size="xs" variant="ghost" color="indigo" class="font-extrabold">Limpar Fila</flux:button>
+                            <div class="mt-4 p-4 rounded-2xl bg-zinc-100/60 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-700 dark:text-zinc-300 space-y-2.5 max-h-48 overflow-y-auto shadow-inner animate-fade-in text-left">
+                                <div class="font-bold flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 pb-2">
+                                    <span>{{ count($files) }} arquivo(s) anexado(s):</span>
+                                    <flux:button wire:click="$set('files', [])" size="xs" variant="ghost" class="font-extrabold">Limpar Fila</flux:button>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     @foreach ($files as $index => $file)
-                                        <div class="flex items-center justify-between bg-white/70 dark:bg-zinc-950/40 p-2 rounded-xl border border-indigo-50 dark:border-indigo-900/50 truncate shadow-sm">
+                                        <div class="flex items-center justify-between bg-white/70 dark:bg-zinc-950/40 p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 truncate shadow-sm">
                                             <div class="flex items-center gap-2 truncate">
-                                                <flux:icon.document-text class="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                                                <flux:icon.document-text class="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
                                                 <span class="truncate font-medium text-zinc-700 dark:text-zinc-300">{{ $file->getClientOriginalName() }}</span>
                                             </div>
                                         </div>
@@ -207,7 +318,7 @@ new #[Layout('layouts.main')] class extends Component {
             <flux:button href="{{ route('home') }}" variant="ghost">Cancelar e Voltar</flux:button>
 
             <div class="flex items-center gap-4">
-                <x-loading target="files" variant="badge">
+                <x-loading target="files,question_images" variant="badge">
                     Enviando arquivos...
                 </x-loading>
 

@@ -5,9 +5,11 @@ namespace App\Providers;
 use App\Models\User;
 use App\Services\GeminiApiKeyService;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -34,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Gate::define('admin', fn (User $user) => $user->isAdmin());
+
+        RateLimiter::for('gemini-api', function (object $job) {
+            return Limit::perMinute(20);
+        });
 
         try {
             app(GeminiApiKeyService::class)->configureContainerClient();

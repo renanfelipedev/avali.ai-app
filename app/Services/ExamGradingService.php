@@ -7,6 +7,7 @@ use App\Models\ExamEvaluation;
 use App\Models\ExamSubmission;
 use Gemini\Data\Blob;
 use Gemini\Enums\MimeType;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\Element\TextRun;
@@ -129,10 +130,17 @@ class ExamGradingService
     private function createBlobFromPath(string $path): Blob
     {
         $fullPath = Storage::disk('public')->path($path);
+        $mime = $this->getMimeType($fullPath);
+        $mtime = file_exists($fullPath) ? filemtime($fullPath) : 0;
+        $cacheKey = 'blob_b64_'.md5($path).'_'.$mtime;
+
+        $base64 = Cache::remember($cacheKey, 3600, function () use ($fullPath) {
+            return base64_encode(file_get_contents($fullPath));
+        });
 
         return new Blob(
-            mimeType: $this->getMimeType($fullPath),
-            data: base64_encode(file_get_contents($fullPath))
+            mimeType: $mime,
+            data: $base64
         );
     }
 
@@ -281,20 +289,24 @@ class ExamGradingService
 
     private function buildSystemPrompt(ExamEvaluation $evaluation): string
     {
-        $criteria = $evaluation->grading_criteria ?? 'Avalie de 0 a 10 seguindo os padrões educacionais brasileiros.';
-        $hasAnswerKey = ! empty($evaluation->answer_key_file_path);
-        $hasExamFile = ! empty($evaluation->exam_file_path);
+        $cacheKey = "eval_prompt_{$evaluation->id}_".($evaluation->updated_at?->timestamp ?? 0);
 
-        $viewName = "prompts.grading.{$evaluation->type}";
-        if (! view()->exists($viewName)) {
-            $viewName = 'prompts.grading.exam'; // fallback
-        }
+        return Cache::remember($cacheKey, 3600, function () use ($evaluation) {
+            $criteria = $evaluation->grading_criteria ?? 'Avalie de 0 a 10 seguindo os padrões educacionais brasileiros.';
+            $hasAnswerKey = ! empty($evaluation->answer_key_file_path);
+            $hasExamFile = ! empty($evaluation->exam_file_path);
 
-        return view($viewName, [
-            'criteria' => $criteria,
-            'hasAnswerKey' => $hasAnswerKey,
-            'hasExamFile' => $hasExamFile,
-        ])->render();
+            $viewName = "prompts.grading.{$evaluation->type}";
+            if (! view()->exists($viewName)) {
+                $viewName = 'prompts.grading.exam'; // fallback
+            }
+
+            return view($viewName, [
+                'criteria' => $criteria,
+                'hasAnswerKey' => $hasAnswerKey,
+                'hasExamFile' => $hasExamFile,
+            ])->render();
+        });
     }
 
     private function boolToStr(bool $val): string

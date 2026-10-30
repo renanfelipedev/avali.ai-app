@@ -144,7 +144,7 @@ class GeminiApiKey extends Model
     /**
      * Registra uma falha de requisição.
      */
-    public function recordFailure(string $errorMessage, bool $isRateLimit = false, bool $isInvalid = false): void
+    public function recordFailure(string $errorMessage, bool $isRateLimit = false, bool $isInvalid = false, int $quarantineSeconds = 90): void
     {
         $status = $this->status;
         $rateLimitedUntil = $this->rate_limited_until;
@@ -153,7 +153,7 @@ class GeminiApiKey extends Model
             $status = 'invalid';
         } elseif ($isRateLimit) {
             $status = 'rate_limited';
-            $rateLimitedUntil = now()->addMinutes(5);
+            $rateLimitedUntil = now()->addSeconds($quarantineSeconds);
         } else {
             $status = 'error';
         }

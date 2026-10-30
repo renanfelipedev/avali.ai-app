@@ -150,6 +150,17 @@ new #[Layout('layouts.main')] class extends Component
                                     </div>
                                 </div>
                                 
+                                @if(!empty($q['image_path']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($q['image_path']))
+                                    <div class="my-4 flex flex-col items-center pl-8">
+                                        <div class="p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm max-w-xl">
+                                            <img src="{{ \Illuminate\Support\Facades\Storage::url($q['image_path']) }}" alt="Imagem da Questão {{ $q['number'] ?? $loop->iteration }}" class="max-h-80 w-auto object-contain rounded-xl mx-auto" />
+                                            @if(!empty($q['image_caption']))
+                                                <p class="text-xs text-center text-zinc-500 dark:text-zinc-400 mt-2 font-medium italic">{{ $q['image_caption'] }}</p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
+                                
                                 <div class="grid grid-cols-1 gap-2 pl-8">
                                     @foreach($q['options'] ?? [] as $key => $option)
                                         <div class="flex items-start gap-3 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
@@ -175,6 +186,18 @@ new #[Layout('layouts.main')] class extends Component
                                         {{ $q['text'] ?? '' }}
                                     </div>
                                 </div>
+
+                                @if(!empty($q['image_path']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($q['image_path']))
+                                    <div class="my-4 flex flex-col items-center pl-8">
+                                        <div class="p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm max-w-xl">
+                                            <img src="{{ \Illuminate\Support\Facades\Storage::url($q['image_path']) }}" alt="Imagem da Questão {{ $q['number'] ?? $loop->iteration }}" class="max-h-80 w-auto object-contain rounded-xl mx-auto" />
+                                            @if(!empty($q['image_caption']))
+                                                <p class="text-xs text-center text-zinc-500 dark:text-zinc-400 mt-2 font-medium italic">{{ $q['image_caption'] }}</p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
+
                                 <div class="pl-8">
                                     <div class="h-32 w-full border-b-2 border-dotted border-zinc-300 dark:border-zinc-700"></div>
                                 </div>

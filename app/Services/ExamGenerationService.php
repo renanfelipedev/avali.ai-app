@@ -37,12 +37,29 @@ class ExamGenerationService
         $topicsString = is_array($request->topics) ? implode(', ', $request->topics) : $request->topics;
 
         try {
+            // Separa imagens dedicadas para questões de outros materiais (PDFs, docs)
+            $materials = $request->supporting_materials ?? [];
+            $questionImages = [];
+            $otherMaterials = [];
+
+            foreach ($materials as $material) {
+                $isImage = ! empty($material['is_question_image']) ||
+                    (isset($material['mime_type']) && str_starts_with($material['mime_type'], 'image/'));
+
+                if ($isImage) {
+                    $questionImages[] = $material;
+                } else {
+                    $otherMaterials[] = $material;
+                }
+            }
+
             $prompt = view('prompts.generation.exam', [
                 'objective_count' => $request->objective_count,
                 'discursive_count' => $request->discursive_count,
                 'topics' => $topicsString,
                 'title' => $request->title,
                 'additional_criteria' => $request->additional_criteria,
+                'question_images' => $questionImages,
             ])->render();
 
             // Prepare Gemini parts
@@ -50,9 +67,23 @@ class ExamGenerationService
                 $prompt,
             ];
 
-            // Load and append supporting materials
-            $materials = $request->supporting_materials ?? [];
-            foreach ($materials as $material) {
+            // Anexa as imagens das questões primeiro para dar ênfase visual no Gemini
+            foreach ($questionImages as $img) {
+                if (isset($img['path']) && Storage::disk('public')->exists($img['path'])) {
+                    $filePath = Storage::disk('public')->path($img['path']);
+                    $mime = $this->getMimeType($filePath);
+
+                    if ($mime) {
+                        $parts[] = new Blob(
+                            mimeType: $mime,
+                            data: base64_encode(file_get_contents($filePath))
+                        );
+                    }
+                }
+            }
+
+            // Anexa os demais materiais de apoio (PDFs, textos)
+            foreach ($otherMaterials as $material) {
                 if (isset($material['path']) && Storage::disk('public')->exists($material['path'])) {
                     $filePath = Storage::disk('public')->path($material['path']);
                     $mime = $this->getMimeType($filePath);
@@ -106,6 +137,9 @@ class ExamGenerationService
                 return true;
             }
 
+            // Associa os caminhos das imagens às questões correspondentes
+            $this->associateQuestionImages($examData['questions'], $questionImages);
+
             // Create the Exam record (saved directly to DB)
             $exam = Exam::create([
                 'user_id' => $request->user_id,
@@ -130,23 +164,19 @@ class ExamGenerationService
             $request->update([
                 'status' => 'completed',
                 'generated_exam_id' => $exam->id,
+                'error_message' => null,
             ]);
 
             return true;
         } catch (Throwable $e) {
-            $request->refresh();
-            if ($request->status !== 'completed' && empty($request->generated_exam_id)) {
-                $request->update([
-                    'status' => 'error',
-                    'error_message' => 'Erro na geração: '.$e->getMessage(),
-                ]);
-            }
+            $isTransient = $this->isTransientError($e->getMessage());
 
             $errorDetails = sprintf(
-                "❌ Falha na Geração da Prova\n\n".
+                "❌ Falha na Geração da Prova (%s)\n\n".
                 "📝 Motivo: %s\n".
                 "📁 Origem: %s (Linha: %d)\n\n".
                 "🔍 Trace Resumido:\n%s",
+                $isTransient ? 'Erro Transitório - Tentativa Reagendada' : 'Erro Definitivo',
                 $e->getMessage(),
                 basename($e->getFile()),
                 $e->getLine(),
@@ -162,11 +192,45 @@ class ExamGenerationService
                     'topics' => $request->topics,
                     'questions_count' => $request->questions_count,
                     'failed_ai_response' => $generatedText ?? 'Nenhum texto gerado ou falha antes da geração.',
+                    'is_transient' => $isTransient,
                 ],
+            ]);
+
+            if ($isTransient) {
+                $request->update([
+                    'status' => 'processing',
+                    'error_message' => 'Alta demanda momentânea na IA. Reagendando automaticamente...',
+                ]);
+
+                throw $e;
+            }
+
+            $request->update([
+                'status' => 'error',
+                'error_message' => 'Erro na geração: '.$e->getMessage(),
             ]);
 
             return false;
         }
+    }
+
+    private function isTransientError(string $message): bool
+    {
+        $message = strtolower($message);
+        $transientKeywords = [
+            'timed out', 'timeout', 'high demand', 'too many requests',
+            'quota', 'rate limit', 'service unavailable', 'overload',
+            'resource exhausted', '503', '504', '429', 'deadline exceeded',
+            'try again later', 'curl error 28', 'unavailable',
+        ];
+
+        foreach ($transientKeywords as $keyword) {
+            if (str_contains($message, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function getMimeType(string $filePath): ?MimeType
@@ -178,9 +242,78 @@ class ExamGenerationService
             'png' => MimeType::IMAGE_PNG,
             'jpg', 'jpeg' => MimeType::IMAGE_JPEG,
             'webp' => MimeType::IMAGE_WEBP,
+            'heic' => MimeType::IMAGE_HEIC,
+            'heif' => MimeType::IMAGE_HEIF,
             'txt', 'md', 'csv' => MimeType::TEXT_PLAIN,
             default => null, // Ignore unsupported files
         };
+    }
+
+    /**
+     * Vincula o caminho e a legenda das imagens enviadas às questões geradas pela IA.
+     *
+     * @param  array<int, array<string, mixed>>  $questions
+     * @param  array<int, array<string, mixed>>  $questionImages
+     */
+    private function associateQuestionImages(array &$questions, array $questionImages): void
+    {
+        if (empty($questionImages)) {
+            return;
+        }
+
+        $imageCount = count($questionImages);
+        $hasAnyReference = false;
+
+        foreach ($questions as $q) {
+            if (! empty($q['image_reference'])) {
+                $hasAnyReference = true;
+                break;
+            }
+        }
+
+        foreach ($questions as $idx => &$q) {
+            $assignedImage = null;
+
+            if (! empty($q['image_reference'])) {
+                $ref = strtolower(trim((string) $q['image_reference']));
+
+                foreach ($questionImages as $imgIdx => $img) {
+                    $origName = strtolower(trim((string) ($img['original_name'] ?? '')));
+                    $imgIndexNumber = (string) ($imgIdx + 1);
+
+                    if (
+                        $ref === $origName ||
+                        str_contains($ref, $origName) ||
+                        (! empty($origName) && str_contains($origName, $ref)) ||
+                        $ref === 'imagem '.$imgIndexNumber ||
+                        $ref === 'imagem_'.$imgIndexNumber ||
+                        $ref === 'imagem'.$imgIndexNumber ||
+                        $ref === 'figura '.$imgIndexNumber ||
+                        $ref === 'figura_'.$imgIndexNumber ||
+                        $ref === 'tirinha '.$imgIndexNumber ||
+                        $ref === 'tirinha_'.$imgIndexNumber ||
+                        $ref === $imgIndexNumber
+                    ) {
+                        $assignedImage = $img;
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: se houver exatamente 1 imagem enviada e a IA formulou a prova sem preencher image_reference,
+            // assume que a primeira questão é a questão vinculada à imagem.
+            if (! $assignedImage && ! $hasAnyReference && $imageCount === 1 && $idx === 0) {
+                $assignedImage = $questionImages[0];
+            }
+
+            if ($assignedImage) {
+                $q['image_path'] = $assignedImage['path'] ?? null;
+                if (empty($q['image_caption']) && ! empty($assignedImage['original_name'])) {
+                    $q['image_caption'] = 'Figura: '.$assignedImage['original_name'];
+                }
+            }
+        }
+        unset($q);
     }
 
     /**

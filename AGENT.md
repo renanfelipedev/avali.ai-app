@@ -69,6 +69,7 @@ php artisan make:livewire <Component>
 ```
 
 ## ⚠️ Important Rules
+- **Commits em Português (PT-BR)**: Todas as mensagens de commit geradas pela IA devem ser padronizadas obrigatoriamente em português do Brasil (pt-br), seguindo o padrão Conventional Commits (ex: `feat: adicionar suporte a planos de pagamento`, `fix: corrigir validação de cota mensal`, `refactor: organizar listagem de usuários`).
 - **No Placeholders**: Never use placeholder images or text. Use the `generate_image` tool if UI assets are needed.
 - **Security**: Ensure all routes are protected by appropriate middleware (e.g., `auth`).
 - **Aesthetics & UI Components**: Flux UI is strictly used for a "premium" feel. 

@@ -70,6 +70,10 @@ trait HasPlan
 
     public function getQueuePriority(): string
     {
+        if ($this->isAdmin()) {
+            return 'vip';
+        }
+
         return (string) $this->currentPlan()->getFeature('queue_priority', 'default');
     }
 

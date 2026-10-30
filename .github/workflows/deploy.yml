@@ -36,4 +36,10 @@ jobs:
 
             php artisan queue:restart
             php artisan up
-            npm run build
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            export PATH="$PATH:/usr/local/bin:/usr/bin:/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin"
+
+            if command -v npm >/dev/null 2>&1; then
+              npm run build
+            fi

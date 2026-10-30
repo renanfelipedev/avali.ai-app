@@ -2,14 +2,15 @@
  * avali.ai - Gerenciador de Persistência Segura da Sidebar e Submenus
  * 
  * Responsável por salvar e restaurar o estado de abertura/fechamento dos grupos
- * da barra lateral no localStorage, com validação de esquema estrita contra XSS/injection.
+ * e da própria barra lateral no localStorage, com validação de esquema estrita contra XSS/injection.
  */
 
 const STORAGE_KEY_GROUPS = 'avali.sidebar.groups';
+const STORAGE_KEY_SIDEBAR = 'flux-sidebar-collapsed-desktop';
 const ALLOWED_GROUPS = new Set(['admin', 'turmas', 'provas', 'aulas']);
 
 /**
- * Lê e sanitiza o estado salvo no localStorage
+ * Lê e sanitiza o estado salvo no localStorage para os grupos
  * @returns {Record<string, boolean>}
  */
 function getStoredGroups() {
@@ -36,7 +37,7 @@ function getStoredGroups() {
 }
 
 /**
- * Salva o estado atual no localStorage com segurança
+ * Salva o estado atual de um grupo no localStorage com segurança
  * @param {string} groupKey
  * @param {boolean} isOpen
  */
@@ -55,9 +56,49 @@ function setStoredGroupState(groupKey, isOpen) {
 }
 
 /**
+ * Lê o estado de recolhimento da barra lateral
+ * @returns {boolean}
+ */
+function isSidebarCollapsed() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY_SIDEBAR);
+        return raw !== null ? JSON.parse(raw) === true : false;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Aplica o estado da barra lateral (recolhida ou expandida)
+ */
+function applySidebarCollapsedState() {
+    const sidebar = document.querySelector('ui-sidebar');
+    if (!sidebar) return;
+
+    const isCollapsed = isSidebarCollapsed();
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+
+    if (isDesktop && isCollapsed) {
+        sidebar.setAttribute('data-flux-sidebar-collapsed-desktop', '');
+        if (sidebar.state) {
+            sidebar.state.collapsedDesktop = true;
+        }
+    } else if (isDesktop && !isCollapsed) {
+        sidebar.removeAttribute('data-flux-sidebar-collapsed-desktop');
+        if (sidebar.state) {
+            sidebar.state.collapsedDesktop = false;
+        }
+    }
+}
+
+/**
  * Aplica o estado restaurado nos elementos ui-disclosure correspondentes
  */
 function applySidebarState() {
+    // 1. Aplica o estado de colapso geral da sidebar
+    applySidebarCollapsedState();
+
+    // 2. Aplica o estado de abertura dos grupos
     const stored = getStoredGroups();
 
     document.querySelectorAll('[data-sidebar-group]').forEach(container => {
@@ -101,6 +142,26 @@ function applySidebarState() {
  * Registra ouvintes para capturar a alternância do usuário
  */
 function setupSidebarListeners() {
+    // Monitora alternância global da sidebar pelo botão de collapse
+    const sidebar = document.querySelector('ui-sidebar');
+    if (sidebar && !sidebar._hasCollapseListener) {
+        // Observa alterações no atributo data-flux-sidebar-collapsed-desktop
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.attributeName === 'data-flux-sidebar-collapsed-desktop') {
+                    const isCollapsed = sidebar.hasAttribute('data-flux-sidebar-collapsed-desktop');
+                    try {
+                        localStorage.setItem(STORAGE_KEY_SIDEBAR, JSON.stringify(isCollapsed));
+                    } catch {}
+                }
+            }
+        });
+
+        observer.observe(sidebar, { attributes: true });
+        sidebar._hasCollapseListener = true;
+    }
+
+    // Monitora submenus
     document.querySelectorAll('[data-sidebar-group]').forEach(container => {
         const groupKey = container.getAttribute('data-sidebar-group');
         if (!groupKey || !ALLOWED_GROUPS.has(groupKey)) return;
@@ -120,7 +181,6 @@ function setupSidebarListeners() {
         const button = disclosure.querySelector('button, ui-button');
         if (button) {
             button.addEventListener('click', () => {
-                // Pequeno microtask para aguardar a atualização do estado pelo Flux
                 setTimeout(() => {
                     const isOpen = disclosure.hasAttribute('open') || disclosure.hasAttribute('data-open');
                     setStoredGroupState(groupKey, isOpen);
@@ -146,5 +206,12 @@ if (document.readyState === 'loading') {
     initSidebarPersistence();
 }
 
-// Suporte a navegação por Livewire SPA
-document.addEventListener('livewire:navigated', initSidebarPersistence);
+// Suporte a Livewire SPA e navegação instantânea
+document.addEventListener('livewire:navigated', () => {
+    initSidebarPersistence();
+    // Executa também após o ciclo microtask para garantir sincronização com o Flux
+    setTimeout(applySidebarState, 10);
+});
+
+// Executa imediatamente quando o elemento ui-sidebar for montado/renderizado
+window.addEventListener('load', applySidebarState);

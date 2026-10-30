@@ -1,11 +1,11 @@
-<flux:sidebar sticky collapsible="mobile"
+<flux:sidebar sticky collapsible
     class="bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700 overflow-x-hidden">
     <flux:sidebar.header>
         <flux:sidebar.brand href="{{ route('home') }}" name="avali.ai" logo="/images/logo.png"
             class="font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
         </flux:sidebar.brand>
 
-        <flux:sidebar.collapse class="lg:hidden" />
+        <flux:sidebar.collapse />
     </flux:sidebar.header>
 
     <!-- <flux:sidebar.search placeholder="Search..." /> -->
@@ -14,7 +14,7 @@
         <flux:sidebar.item icon="home" href="/home">Home</flux:sidebar.item>
 
         @can('admin')
-            <flux:sidebar.group expandable heading="Módulo de Administração">
+            <flux:sidebar.group expandable data-sidebar-group="admin" heading="Módulo de Administração">
                 <flux:sidebar.item icon="users" href="{{ route('users.index') }}">Usuários
                 </flux:sidebar.item>
                 <flux:sidebar.item icon="cpu-chip" href="{{ route('tasks.index') }}">
@@ -53,12 +53,12 @@
             </flux:sidebar.item>
         @endcan
 
-        <flux:sidebar.group expandable heading="Módulo de Turmas">
+        <flux:sidebar.group expandable data-sidebar-group="turmas" heading="Módulo de Turmas">
             <flux:sidebar.item icon="academic-cap" href="{{ route('classrooms.index') }}">Turmas</flux:sidebar.item>
             <flux:sidebar.item icon="users" href="{{ route('students.index') }}">Alunos</flux:sidebar.item>
         </flux:sidebar.group>
 
-        <flux:sidebar.group expandable heading="Módulo de Provas">
+        <flux:sidebar.group expandable data-sidebar-group="provas" heading="Módulo de Provas">
             <flux:sidebar.item icon="document-duplicate" href="{{ route('exams.index') }}">Ver Provas
             </flux:sidebar.item>
             <flux:sidebar.item icon="sparkles" href="{{ route('exams.create') }}">Nova Prova</flux:sidebar.item>
@@ -70,7 +70,7 @@
             <flux:sidebar.item icon="cog-6-tooth" href="{{ route('exams.settings') }}">Configurações</flux:sidebar.item>
         </flux:sidebar.group>
 
-        <flux:sidebar.group expandable heading="Módulo de Aulas">
+        <flux:sidebar.group expandable data-sidebar-group="aulas" heading="Módulo de Aulas">
             <flux:sidebar.item icon="clock" href="{{ route('attendance.index') }}">Chamada Online</flux:sidebar.item>
         </flux:sidebar.group>
     </flux:sidebar.nav>

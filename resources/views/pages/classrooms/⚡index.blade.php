@@ -32,7 +32,7 @@ new #[Layout('layouts.main')] class extends Component
     public function with(): array
     {
         return [
-            'classrooms' => Auth::user()->classrooms()->withCount('students')->latest()->get(),
+            'classrooms' => Auth::user()->classrooms()->withCount('students')->orderBy('name', 'asc')->get(),
         ];
     }
 

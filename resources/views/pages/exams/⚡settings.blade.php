@@ -27,7 +27,7 @@ new #[Layout('layouts.main')] class extends Component
     public function with(): array
     {
         return [
-            'profiles' => Auth::user()->printProfiles()->latest()->get(),
+            'profiles' => Auth::user()->printProfiles()->orderBy('institution_name', 'asc')->get(),
         ];
     }
 

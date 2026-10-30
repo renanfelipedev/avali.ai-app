@@ -155,8 +155,8 @@ new #[Layout('layouts.main')] class extends Component {
     public function with()
     {
         return [
-            'users' => User::with('roles')->paginate(10),
-            'allRoles' => Role::where('slug', '!=', UserRole::STUDENT->value)->get(),
+            'users' => User::with('roles')->orderBy('name', 'asc')->paginate(10),
+            'allRoles' => Role::where('slug', '!=', UserRole::STUDENT->value)->orderBy('name', 'asc')->get(),
         ];
     }
 };

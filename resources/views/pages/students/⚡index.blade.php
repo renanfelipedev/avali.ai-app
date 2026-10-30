@@ -32,7 +32,7 @@ new #[Layout('layouts.main')] class extends Component
     public function with(): array
     {
         $user = Auth::user();
-        $query = $user->students()->with('classrooms')->latest();
+        $query = $user->students()->with('classrooms')->orderBy('name', 'asc');
 
         if (!empty($this->search)) {
             $search = '%' . trim($this->search) . '%';

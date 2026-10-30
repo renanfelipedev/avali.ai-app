@@ -81,12 +81,12 @@ class User extends Authenticatable
 
     public function classrooms(): HasMany
     {
-        return $this->hasMany(Classroom::class);
+        return $this->hasMany(Classroom::class)->orderBy('name', 'asc');
     }
 
     public function students(): HasMany
     {
-        return $this->hasMany(Student::class);
+        return $this->hasMany(Student::class)->orderBy('name', 'asc');
     }
 
     public function examEvaluations(): HasMany

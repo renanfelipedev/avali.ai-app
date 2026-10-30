@@ -18,7 +18,7 @@ class Classroom extends Model
 
     public function students(): BelongsToMany
     {
-        return $this->belongsToMany(Student::class);
+        return $this->belongsToMany(Student::class)->orderBy('name', 'asc');
     }
 
     public function exams(): HasMany

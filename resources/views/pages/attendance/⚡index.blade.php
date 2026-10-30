@@ -114,7 +114,7 @@ new #[Layout('layouts.main')] class extends Component {
 
         return [
             'sessions' => $query->paginate(10),
-            'classrooms' => auth()->user()->classrooms()->latest()->get(),
+            'classrooms' => auth()->user()->classrooms()->orderBy('name', 'asc')->get(),
         ];
     }
 

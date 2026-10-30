@@ -18,7 +18,15 @@ test('teacher can upload question images when creating an exam request', functio
     Storage::fake('public');
     Queue::fake();
 
+    $this->seed(\Database\Seeders\PlanSeeder::class);
     $user = User::factory()->create();
+    $proPlan = \App\Models\Plan::where('slug', 'pro')->first();
+    \App\Models\Subscription::create([
+        'user_id' => $user->id,
+        'plan_id' => $proPlan->id,
+        'status' => 'active',
+        'starts_at' => now(),
+    ]);
 
     $image1 = UploadedFile::fake()->image('tirinha_mafalda.png', 400, 300);
     $image2 = UploadedFile::fake()->image('grafico_funcao.jpg', 500, 350);

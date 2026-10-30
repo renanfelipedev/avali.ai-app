@@ -167,6 +167,9 @@ class ExamGenerationService
                 'error_message' => null,
             ]);
 
+            // Increment plan usage for the user
+            $request->user?->recordExamUsage();
+
             return true;
         } catch (Throwable $e) {
             $isTransient = $this->isTransientError($e->getMessage());

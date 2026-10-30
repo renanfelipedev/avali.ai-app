@@ -56,6 +56,16 @@ new #[Layout('layouts.main')] class extends Component {
         try {
             $this->validate();
 
+            // Validação de cota mensal do Plano
+            if (! auth()->user()->canGenerateExam()) {
+                $planLimit = auth()->user()->currentPlan()->getFeature('monthly_exams_limit', 5);
+                $this->addError('title', "Você atingiu a cota mensal de {$planLimit} provas do seu plano atual (".auth()->user()->currentPlan()->name.'). Faça upgrade para continuar gerando.');
+                $this->isSubmitting = false;
+
+                return null;
+            }
+
+            // Validação de limite diário de segurança
             $dailyLimit = (int) SystemSetting::get('daily_exam_limit_per_teacher', 20);
             if (! auth()->user()->isAdmin()) {
                 $todayCount = Exam::where('user_id', auth()->id())
@@ -65,13 +75,33 @@ new #[Layout('layouts.main')] class extends Component {
                 if ($todayCount >= $dailyLimit) {
                     $this->addError('title', "Você atingiu seu limite diário de {$dailyLimit} provas geradas por professor. Tente novamente amanhã ou fale com um administrador.");
                     $this->isSubmitting = false;
+
                     return null;
                 }
+            }
+
+            // Validação de quantidade máxima de questões permitidas pelo plano
+            $maxQuestions = (int) auth()->user()->currentPlan()->getFeature('max_questions_per_exam', 10);
+            $totalQuestionsRequested = $this->objective_count + $this->discursive_count;
+            if ($maxQuestions > 0 && $totalQuestionsRequested > $maxQuestions && ! auth()->user()->isAdmin()) {
+                $this->addError('objective_count', "O seu plano atual permite até {$maxQuestions} questões por prova. Você solicitou {$totalQuestionsRequested}. Reduza a quantidade ou faça upgrade de plano.");
+                $this->isSubmitting = false;
+
+                return null;
+            }
+
+            // Validação de imagens / tirinhas permitidas pelo plano
+            if (! empty($this->question_images) && ! auth()->user()->canUseFeature('allow_question_images')) {
+                $this->addError('question_images', 'O envio de imagens e tirinhas para formulação de questões é um recurso exclusivo dos planos Pro e Institucional. Remova as imagens ou faça upgrade de plano.');
+                $this->isSubmitting = false;
+
+                return null;
             }
 
             if ($this->objective_count == 0 && $this->discursive_count == 0) {
                 $this->addError('objective_count', 'Pelo menos uma questão deve ser solicitada.');
                 $this->isSubmitting = false;
+
                 return null;
             }
 
@@ -118,8 +148,8 @@ new #[Layout('layouts.main')] class extends Component {
                 'status' => 'pending',
             ]);
 
-            // Dispatch background job
-            \App\Jobs\GenerateExamJob::dispatch($generationRequest);
+            // Dispatch background job com prioridade baseada no plano
+            \App\Jobs\GenerateExamJob::dispatch($generationRequest)->onQueue(auth()->user()->getQueuePriority());
 
             session()->flash('status', 'A solicitação de geração de prova foi enviada para processamento em segundo plano.');
 
@@ -132,10 +162,18 @@ new #[Layout('layouts.main')] class extends Component {
             throw $e;
         }
     }
+
     public function with(): array
     {
+        $plan = auth()->user()->currentPlan();
+        $monthlyLimit = $plan->getFeature('monthly_exams_limit', 5);
+
         return [
-            'classrooms' => auth()->user()->classrooms()->latest()->get(),
+            'classrooms' => auth()->user()->classrooms()->orderBy('name', 'asc')->get(),
+            'currentPlan' => $plan,
+            'canUseImages' => auth()->user()->canUseFeature('allow_question_images'),
+            'monthlyExamsUsed' => auth()->user()->getCurrentMonthExamsCount(),
+            'monthlyExamsLimit' => $monthlyLimit === -1 ? 'Ilimitado' : $monthlyLimit,
         ];
     }
 };
@@ -143,9 +181,17 @@ new #[Layout('layouts.main')] class extends Component {
 
 <div>
     <!-- PAGE TITLE -->
-    <div class="mb-8">
-        <flux:heading size="xl" class="font-extrabold tracking-tight">✨ Gerar Nova Prova com IA</flux:heading>
-        <flux:subheading>Defina os temas, quantidade de questões e anexe materiais de apoio para criar uma prova personalizada em minutos.</flux:subheading>
+    <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <flux:heading size="xl" class="font-extrabold tracking-tight">✨ Gerar Nova Prova com IA</flux:heading>
+            <flux:subheading>Defina os temas, quantidade de questões e anexe materiais de apoio para criar uma prova personalizada em minutos.</flux:subheading>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('plans.index') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-indigo-300 transition-colors">
+                <flux:icon.credit-card class="w-4 h-4 text-indigo-600" />
+                <span>{{ $currentPlan->name }} ({{ $monthlyExamsUsed }}/{{ $monthlyExamsLimit }} provas)</span>
+            </a>
+        </div>
     </div>
 
     <!-- SESSION ERROR MESSAGE -->
@@ -153,6 +199,20 @@ new #[Layout('layouts.main')] class extends Component {
         <div class="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-sm text-rose-600 dark:text-rose-400 flex items-center gap-3 animate-fade-in shadow-sm">
             <flux:icon.exclamation-triangle class="w-5 h-5 text-rose-600 dark:text-rose-400" />
             <span class="font-medium">{{ session('error') }}</span>
+        </div>
+    @endif
+
+    @if (! auth()->user()->canGenerateExam())
+        <div class="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300 flex items-center justify-between gap-3 animate-fade-in shadow-sm">
+            <div class="flex items-center gap-3">
+                <flux:icon.exclamation-triangle class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>
+                    <strong>Limite mensal do seu plano atingido:</strong> Você já utilizou todas as {{ $monthlyExamsLimit }} provas incluídas no plano {{ $currentPlan->name }} neste mês.
+                </span>
+            </div>
+            <flux:button href="{{ route('plans.index') }}" size="sm" variant="primary">
+                Fazer Upgrade
+            </flux:button>
         </div>
     @endif
 
@@ -206,11 +266,26 @@ new #[Layout('layouts.main')] class extends Component {
         <section class="space-y-4">
             <div class="flex items-center gap-3 mb-2">
                 <flux:badge color="indigo" class="w-8 h-8 flex items-center justify-center rounded-full font-black text-sm shadow-sm">3</flux:badge>
-                <div>
-                    <flux:heading size="lg" class="font-bold">Imagens e Tirinhas para as Questões (Opcional)</flux:heading>
-                    <flux:subheading>Envie uma ou mais imagens (tirinhas, charges, ilustrações ou gráficos). O Gemini analisará visualmente as imagens e formulará questões contextualizadas sobre elas.</flux:subheading>
+                <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <flux:heading size="lg" class="font-bold">Imagens e Tirinhas para as Questões (Opcional)</flux:heading>
+                        <flux:subheading>Envie uma ou mais imagens (tirinhas, charges, ilustrações ou gráficos). O Gemini analisará visualmente as imagens e formulará questões contextualizadas sobre elas.</flux:subheading>
+                    </div>
+                    @if(!$canUseImages)
+                        <flux:badge color="amber" size="sm" class="self-start sm:self-auto font-bold">Recurso Pro</flux:badge>
+                    @endif
                 </div>
             </div>
+
+            @if(!$canUseImages)
+                <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div class="flex items-center gap-2.5">
+                        <flux:icon.sparkles class="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                        <span>O envio de imagens e tirinhas para formulação de questões está liberado a partir do <strong>Plano Professor Pro</strong>.</span>
+                    </div>
+                    <flux:button href="{{ route('plans.index') }}" size="xs" variant="primary" class="self-start sm:self-auto font-bold">Conhecer Planos</flux:button>
+                </div>
+            @endif
 
             <flux:card class="border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/10 dark:bg-indigo-950/5 shadow-sm space-y-6">
                 <div class="flex flex-col items-center justify-center py-4 text-center space-y-4">

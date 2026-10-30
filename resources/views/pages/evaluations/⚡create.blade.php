@@ -75,6 +75,22 @@ new #[Layout('layouts.main')] class extends Component {
     public function save(SubmissionService $submissionService)
     {
         $this->validate();
+
+        // Validação de permissão do Google Classroom pelo plano
+        if ($this->use_google_classroom && ! auth()->user()->canUseFeature('allow_google_classroom')) {
+            $this->addError('use_google_classroom', 'A integração e sincronização com o Google Classroom é um recurso exclusivo do Plano Institucional. Faça upgrade para desbloquear.');
+            return;
+        }
+
+        // Validação da cota mensal de correções do plano
+        $batchCount = count($this->student_submissions);
+        if (! auth()->user()->canEvaluateSubmissions($batchCount)) {
+            $planLimit = auth()->user()->currentPlan()->getFeature('monthly_submissions_limit', 25);
+            $used = auth()->user()->getCurrentMonthSubmissionsCount();
+            $this->addError('student_submissions', "Seu plano atual permite {$planLimit} correções mensais (você já utilizou {$used}). O envio atual excede seu limite. Faça upgrade para continuar.");
+            return;
+        }
+
         $this->isProcessing = true;
 
         \Log::info('Iniciando salvamento de avaliação', [
@@ -100,8 +116,8 @@ new #[Layout('layouts.main')] class extends Component {
         ]);
 
         if ($this->import_from_classroom) {
-            // A importação das entregas do Google Classroom será processada de forma assíncrona (Fase 3)
-            \App\Jobs\SyncClassroomSubmissionsJob::dispatch($evaluation);
+            // A importação das entregas do Google Classroom será processada de forma assíncrona
+            \App\Jobs\SyncClassroomSubmissionsJob::dispatch($evaluation)->onQueue(auth()->user()->getQueuePriority());
             session()->flash('status', 'A importação automática das provas do Google Classroom foi agendada.');
         } else {
             // Delegate complex processing to service (DRY & KISS)

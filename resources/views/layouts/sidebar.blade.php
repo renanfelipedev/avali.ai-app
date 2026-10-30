@@ -78,6 +78,7 @@
     <flux:sidebar.spacer />
 
     <flux:sidebar.nav>
+        <flux:sidebar.item icon="credit-card" href="{{ route('plans.index') }}">Planos & Assinatura</flux:sidebar.item>
         <flux:sidebar.item icon="document-text" href="{{ route('ai-logs.index') }}">Logs da IA</flux:sidebar.item>
         <!-- <flux:sidebar.item icon="cog-6-tooth" href="#">Settings</flux:sidebar.item> -->
     </flux:sidebar.nav>
@@ -88,6 +89,9 @@
         <flux:menu>
             <flux:menu.item icon="user" href="{{ route('profile') }}">
                 Meu Perfil
+            </flux:menu.item>
+            <flux:menu.item icon="credit-card" href="{{ route('plans.index') }}">
+                Planos & Assinatura
             </flux:menu.item>
             <flux:menu.item icon="arrow-right-start-on-rectangle" href="{{ route('logout') }}">
                 Logout

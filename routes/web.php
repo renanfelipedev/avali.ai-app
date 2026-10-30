@@ -74,6 +74,9 @@ Route::middleware('auth')->group(function () {
     // Módulo de Perfil do Usuário
     Route::livewire('/profile', 'pages::profile.index')->name('profile');
 
+    // Planos de Assinatura
+    Route::livewire('/plans', 'pages::plans.index')->name('plans.index');
+
     // Application Health (Production Only)
     Route::livewire('/health', 'pages::health.index')
         ->name('health')

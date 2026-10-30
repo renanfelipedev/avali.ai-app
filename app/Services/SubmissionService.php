@@ -79,7 +79,8 @@ class SubmissionService
                         'status' => 'pending',
                     ]);
 
-                    EvaluateSubmissionJob::dispatch($evaluation, $submission);
+                    $queue = $evaluation->user?->getQueuePriority() ?? 'default';
+                    EvaluateSubmissionJob::dispatch($evaluation, $submission)->onQueue($queue);
                 }
             }
             File::deleteDirectory($tempDir);
@@ -101,7 +102,8 @@ class SubmissionService
             'status' => 'pending',
         ]);
 
-        EvaluateSubmissionJob::dispatch($evaluation, $submission);
+        $queue = $evaluation->user?->getQueuePriority() ?? 'default';
+        EvaluateSubmissionJob::dispatch($evaluation, $submission)->onQueue($queue);
     }
 
     /**

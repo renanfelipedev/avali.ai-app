@@ -97,6 +97,9 @@ class ExamGradingService
                 'status_message' => 'Concluído com sucesso',
             ]);
 
+            // Increment plan usage for the evaluation's user
+            $evaluation->user?->recordSubmissionUsage();
+
             // Se a avaliação e submissão estiverem vinculadas ao Google Classroom, enviar a nota de volta
             if (! empty($evaluation->google_course_id) && ! empty($evaluation->google_coursework_id) && ! empty($submission->google_submission_id)) {
                 try {

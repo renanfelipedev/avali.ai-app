@@ -2,6 +2,7 @@
 
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Rules\ValidCpf;
 use App\Services\AsaasService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
@@ -93,10 +94,9 @@ new #[Layout('layouts.main')] class extends Component {
         }
 
         $this->validate([
-            'cpf' => ['required', 'string', 'min:11'],
+            'cpf' => ['required', 'string', new ValidCpf()],
         ], [
             'cpf.required' => 'Informe o CPF do titular para emissão da assinatura.',
-            'cpf.min' => 'O CPF informado está incompleto.',
         ]);
 
         $this->isProcessingCheckout = true;
@@ -136,6 +136,7 @@ new #[Layout('layouts.main')] class extends Component {
                 $this->paymentUrl = $firstPayment['invoiceUrl'];
                 // Redireciona para o checkout do Asaas
                 $this->redirect($this->paymentUrl);
+
                 return;
             }
 
@@ -144,7 +145,9 @@ new #[Layout('layouts.main')] class extends Component {
                 heading: 'Assinatura Iniciada!',
                 text: 'Sua assinatura foi criada. Assim que o pagamento for aprovado, seu plano será ativado!'
             );
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
+
             Flux::toast(
                 variant: 'danger',
                 heading: 'Erro no Checkout',

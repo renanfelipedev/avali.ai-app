@@ -72,9 +72,19 @@ class AsaasService
     public function updateCustomer(User $user, array $data): bool
     {
         $customerId = $this->findOrCreateCustomer($user);
-        $response = $this->request('put', "/customers/{$customerId}", $data);
+        $response = $this->request('post', "/customers/{$customerId}", $data);
 
-        return $response->successful();
+        if (! $response->successful()) {
+            $errorDescription = $response->json('errors.0.description') ?? 'Falha ao atualizar dados do cliente no gateway Asaas';
+            Log::error('Asaas customer update failed', [
+                'user_id' => $user->id,
+                'customer_id' => $customerId,
+                'response' => $response->json(),
+            ]);
+            throw new Exception($errorDescription);
+        }
+
+        return true;
     }
 
     /**

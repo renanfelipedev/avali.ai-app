@@ -262,152 +262,142 @@ new #[Layout('layouts.main')] class extends Component {
         @endif
     </flux:card>
 
-    <!-- TABELA DE ERROS REFINADA -->
-    <flux:card class="overflow-hidden p-0 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-        <div class="overflow-x-auto w-full scrollbar-none">
-            <flux:table>
-                <flux:table.columns>
-                    <flux:table.column class="w-10">
-                        <input type="checkbox" wire:model.live="selectAll"
-                            class="rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500" />
-                    </flux:table.column>
-                    <flux:table.column class="w-32">Momento</flux:table.column>
-                    <flux:table.column class="w-24">Nível</flux:table.column>
-                    <flux:table.column>Erro & Mensagem</flux:table.column>
-                    <flux:table.column class="w-64">Origem / Rota</flux:table.column>
-                    <flux:table.column class="w-44">Usuário / IP</flux:table.column>
-                    <flux:table.column align="end" class="w-24">Ações</flux:table.column>
-                </flux:table.columns>
+    <!-- TABELA DE ERROS ESTRITAMENTE FLUX UI -->
+    <flux:card class="overflow-hidden">
+        <flux:table :paginate="$errors">
+            <flux:table.columns>
+                <flux:table.column class="w-10">
+                    <flux:checkbox wire:model.live="selectAll" />
+                </flux:table.column>
+                <flux:table.column class="w-36">Momento</flux:table.column>
+                <flux:table.column class="w-28">Nível</flux:table.column>
+                <flux:table.column>Erro & Mensagem</flux:table.column>
+                <flux:table.column class="w-56">Origem / Rota</flux:table.column>
+                <flux:table.column class="w-48">Usuário / IP</flux:table.column>
+                <flux:table.column align="end" class="w-24">Ações</flux:table.column>
+            </flux:table.columns>
 
-                <flux:table.rows>
-                    @forelse ($errors as $error)
-                        @php
-                            $badgeColor = match(strtolower($error->level)) {
-                                'critical', 'emergency', 'alert' => 'red',
-                                'warning' => 'amber',
-                                default => 'rose',
-                            };
+            <flux:table.rows>
+                @forelse ($errors as $error)
+                    @php
+                        $badgeColor = match(strtolower($error->level)) {
+                            'critical', 'emergency', 'alert' => 'red',
+                            'warning' => 'amber',
+                            default => 'rose',
+                        };
 
-                            $isHttp = ! empty($error->url);
-                            $urlPath = $isHttp ? parse_url($error->url, PHP_URL_PATH) : null;
-                        @endphp
-                        <flux:table.row class="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors">
-                            <flux:table.cell>
-                                <input type="checkbox" wire:model.live="selectedIds" value="{{ $error->id }}"
-                                    class="rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500" />
-                            </flux:table.cell>
+                        $isHttp = ! empty($error->url);
+                        $urlPath = $isHttp ? parse_url($error->url, PHP_URL_PATH) : null;
+                    @endphp
+                    <flux:table.row class="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors">
+                        <flux:table.cell>
+                            <flux:checkbox wire:model.live="selectedIds" value="{{ $error->id }}" />
+                        </flux:table.cell>
 
-                            <!-- Data e Hora -->
-                            <flux:table.cell class="whitespace-nowrap">
-                                <span class="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">
-                                    {{ $error->created_at->format('d/m/Y H:i:s') }}
+                        <!-- Data e Hora -->
+                        <flux:table.cell class="whitespace-nowrap">
+                            <span class="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">
+                                {{ $error->created_at->format('d/m/Y H:i:s') }}
+                            </span>
+                            <span class="text-[10px] text-zinc-400 font-medium">
+                                {{ $error->created_at->diffForHumans() }}
+                            </span>
+                        </flux:table.cell>
+
+                        <!-- Nível -->
+                        <flux:table.cell>
+                            <flux:badge color="{{ $badgeColor }}" size="sm" class="uppercase font-bold text-[10px] tracking-wide">
+                                {{ $error->level }}
+                            </flux:badge>
+                        </flux:table.cell>
+
+                        <!-- Mensagem e Exceção -->
+                        <flux:table.cell class="max-w-md">
+                            <div class="flex items-start gap-1.5">
+                                <span class="inline-block px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono text-[11px] font-bold text-zinc-700 dark:text-zinc-300 flex-shrink-0">
+                                    {{ class_basename($error->exception_class ?? 'Exception') }}
                                 </span>
-                                <span class="text-[10px] text-zinc-400 font-medium">
-                                    {{ $error->created_at->diffForHumans() }}
+                            </div>
+                            <div class="text-xs font-medium text-rose-700 dark:text-rose-400 line-clamp-2 mt-1 break-words font-mono" title="{{ $error->message }}">
+                                {{ $error->message }}
+                            </div>
+                            @if($error->file)
+                                <div class="text-[11px] text-zinc-400 font-mono truncate mt-1 flex items-center gap-1" title="{{ $error->file }}:{{ $error->line }}">
+                                    <flux:icon.code-bracket class="w-3 h-3 flex-shrink-0" />
+                                    <span>{{ basename($error->file) }}:<strong>{{ $error->line }}</strong></span>
+                                </div>
+                            @endif
+                        </flux:table.cell>
+
+                        <!-- Origem / Rota -->
+                        <flux:table.cell class="text-xs">
+                            @if($isHttp)
+                                <div class="flex items-center gap-1.5">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider
+                                        {{ in_array($error->method, ['POST', 'PUT', 'DELETE']) ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300' : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' }}">
+                                        {{ $error->method }}
+                                    </span>
+                                    <span class="font-mono text-zinc-800 dark:text-zinc-200 truncate max-w-[180px]" title="{{ $error->url }}">
+                                        {{ $urlPath ?: '/' }}
+                                    </span>
+                                </div>
+                            @else
+                                <span class="inline-flex items-center gap-1 text-[11px] text-zinc-400 italic">
+                                    <flux:icon.command-line class="w-3.5 h-3.5" />
+                                    Console / Fila Background
                                 </span>
-                            </flux:table.cell>
+                            @endif
+                        </flux:table.cell>
 
-                            <!-- Nível -->
-                            <flux:table.cell>
-                                <flux:badge color="{{ $badgeColor }}" size="sm" class="uppercase font-bold text-[10px] tracking-wide">
-                                    {{ $error->level }}
-                                </flux:badge>
-                            </flux:table.cell>
-
-                            <!-- Mensagem e Exceção -->
-                            <flux:table.cell class="max-w-md">
-                                <div class="flex items-start gap-1.5">
-                                    <span class="inline-block px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono text-[11px] font-bold text-zinc-700 dark:text-zinc-300 flex-shrink-0">
-                                        {{ class_basename($error->exception_class ?? 'Exception') }}
-                                    </span>
+                        <!-- Usuário / IP -->
+                        <flux:table.cell class="text-xs">
+                            @if($error->user)
+                                <div class="font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-[160px]" title="{{ $error->user->name }}">
+                                    {{ $error->user->name }}
                                 </div>
-                                <div class="text-xs font-medium text-rose-700 dark:text-rose-400 line-clamp-2 mt-1 break-words font-mono" title="{{ $error->message }}">
-                                    {{ $error->message }}
+                                <div class="text-[11px] text-zinc-400 truncate max-w-[160px]">
+                                    {{ $error->user->email }}
                                 </div>
-                                @if($error->file)
-                                    <div class="text-[11px] text-zinc-400 font-mono truncate mt-1 flex items-center gap-1" title="{{ $error->file }}:{{ $error->line }}">
-                                        <flux:icon.code-bracket class="w-3 h-3 flex-shrink-0" />
-                                        <span>{{ basename($error->file) }}:<strong>{{ $error->line }}</strong></span>
-                                    </div>
-                                @endif
-                            </flux:table.cell>
+                            @else
+                                <span class="text-zinc-400 text-xs italic">Não autenticado</span>
+                            @endif
 
-                            <!-- Origem / Rota -->
-                            <flux:table.cell class="text-xs">
-                                @if($isHttp)
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider
-                                            {{ in_array($error->method, ['POST', 'PUT', 'DELETE']) ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300' : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' }}">
-                                            {{ $error->method }}
-                                        </span>
-                                        <span class="font-mono text-zinc-800 dark:text-zinc-200 truncate max-w-[180px]" title="{{ $error->url }}">
-                                            {{ $urlPath ?: '/' }}
-                                        </span>
-                                    </div>
-                                @else
-                                    <span class="inline-flex items-center gap-1 text-[11px] text-zinc-400 italic">
-                                        <flux:icon.command-line class="w-3.5 h-3.5" />
-                                        Console / Fila Background
-                                    </span>
-                                @endif
-                            </flux:table.cell>
-
-                            <!-- Usuário / IP -->
-                            <flux:table.cell class="text-xs">
-                                @if($error->user)
-                                    <div class="font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-[160px]" title="{{ $error->user->name }}">
-                                        {{ $error->user->name }}
-                                    </div>
-                                    <div class="text-[11px] text-zinc-400 truncate max-w-[160px]">
-                                        {{ $error->user->email }}
-                                    </div>
-                                @else
-                                    <span class="text-zinc-400 text-xs italic">Não autenticado</span>
-                                @endif
-
-                                @if($error->ip_address)
-                                    <div class="text-[10px] font-mono text-zinc-400 mt-0.5">
-                                        IP: {{ $error->ip_address }}
-                                    </div>
-                                @endif
-                            </flux:table.cell>
-
-                            <!-- Ações -->
-                            <flux:table.cell align="end">
-                                <div class="flex items-center justify-end gap-1">
-                                    <flux:button size="sm" variant="ghost" icon="eye" wire:click="viewDetails({{ $error->id }})" title="Inspecionar Diagnóstico Completo" />
-                                    <flux:button size="sm" variant="ghost" icon="trash" wire:click="deleteError({{ $error->id }})" class="text-rose-600 hover:text-rose-700 dark:text-rose-400" title="Excluir Registro" />
+                            @if($error->ip_address)
+                                <div class="text-[10px] font-mono text-zinc-400 mt-0.5">
+                                    IP: {{ $error->ip_address }}
                                 </div>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="7" class="text-center py-16 text-zinc-500">
-                                <div class="flex flex-col items-center justify-center gap-2">
-                                    <div class="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 rounded-full mb-1">
-                                        <flux:icon.check-circle class="w-8 h-8" />
-                                    </div>
-                                    <span class="text-base font-bold text-zinc-800 dark:text-zinc-200">Nenhum erro encontrado!</span>
-                                    <span class="text-xs text-zinc-400 max-w-sm">
-                                        @if(! empty($search) || ! empty($levelFilter) || $dateFilter !== 'all')
-                                            Nenhum log corresponde aos critérios de filtro informados. Tente ajustar os termos de busca.
-                                        @else
-                                            Todas as requisições, endpoints e background jobs estão operando sem falhas registradas.
-                                        @endif
-                                    </span>
-                                </div>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-        </div>
+                            @endif
+                        </flux:table.cell>
 
-        @if($errors->hasPages())
-            <div class="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
-                {{ $errors->links() }}
-            </div>
-        @endif
+                        <!-- Ações -->
+                        <flux:table.cell align="end">
+                            <div class="flex items-center justify-end gap-1">
+                                <flux:button size="sm" variant="ghost" icon="eye" wire:click="viewDetails({{ $error->id }})" title="Inspecionar Diagnóstico Completo" />
+                                <flux:button size="sm" variant="ghost" icon="trash" wire:click="deleteError({{ $error->id }})" class="text-rose-600 hover:text-rose-700 dark:text-rose-400" title="Excluir Registro" />
+                            </div>
+                        </flux:table.cell>
+                    </flux:table.row>
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="7" class="text-center py-16 text-zinc-500">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <div class="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 rounded-full mb-1">
+                                    <flux:icon.check-circle class="w-8 h-8" />
+                                </div>
+                                <span class="text-base font-bold text-zinc-800 dark:text-zinc-200">Nenhum erro encontrado!</span>
+                                <span class="text-xs text-zinc-400 max-w-sm">
+                                    @if(! empty($search) || ! empty($levelFilter) || $dateFilter !== 'all')
+                                        Nenhum log corresponde aos critérios de filtro informados. Tente ajustar os termos de busca.
+                                    @else
+                                        Todas as requisições, endpoints e background jobs estão operando sem falhas registradas.
+                                    @endif
+                                </span>
+                            </div>
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
+            </flux:table.rows>
+        </flux:table>
     </flux:card>
 
     <!-- MODAL DE DETALHES COMPLETOS DO ERRO -->

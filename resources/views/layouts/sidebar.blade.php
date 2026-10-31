@@ -30,6 +30,16 @@
                     @endif
                 </flux:sidebar.item>
                 <flux:sidebar.item icon="key" href="{{ route('gemini-keys.index') }}">Chaves Gemini</flux:sidebar.item>
+                <flux:sidebar.item icon="exclamation-triangle" href="{{ route('system-errors.index') }}">
+                    Erros do Sistema
+                    @php
+                        $errorsToday = \App\Models\SystemErrorLog::whereDate('created_at', today())->count();
+                    @endphp
+                    @if ($errorsToday > 0)
+                        <flux:badge size="sm" color="rose" inset="top bottom">{{ $errorsToday }}</flux:badge>
+                    @endif
+                </flux:sidebar.item>
+                <flux:sidebar.item icon="document-text" href="{{ route('ai-logs.index') }}">Logs da IA</flux:sidebar.item>
                 <flux:sidebar.item icon="heart" href="{{ route('health') }}">Saúde do Sistema</flux:sidebar.item>
                 <flux:sidebar.item icon="cog-6-tooth" href="{{ route('settings.index') }}">Configurações</flux:sidebar.item>
 
@@ -79,8 +89,6 @@
 
     <flux:sidebar.nav>
         <flux:sidebar.item icon="credit-card" href="{{ route('plans.index') }}">Planos & Assinatura</flux:sidebar.item>
-        <flux:sidebar.item icon="document-text" href="{{ route('ai-logs.index') }}">Logs da IA</flux:sidebar.item>
-        <!-- <flux:sidebar.item icon="cog-6-tooth" href="#">Settings</flux:sidebar.item> -->
     </flux:sidebar.nav>
 
     <flux:dropdown position="top" align="start" class="max-lg:hidden">

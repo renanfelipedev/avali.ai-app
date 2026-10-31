@@ -57,8 +57,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/exams/{exam}/pdf', [ExamPdfController::class, 'download'])->name('exams.pdf');
     Route::get('/exams/{exam}/word', [ExamWordController::class, 'download'])->name('exams.word');
 
-    // Logs da IA
-    Route::livewire('/ai-logs', 'pages::ai-logs.index')->name('ai-logs.index');
+    // Logs da IA e Erros do Sistema (Restritos a Administradores)
+    Route::livewire('/ai-logs', 'pages::ai-logs.index')
+        ->name('ai-logs.index')
+        ->middleware('can:admin');
+
+    Route::livewire('/system-errors', 'pages::system-errors.index')
+        ->name('system-errors.index')
+        ->middleware('can:admin');
 
     // Módulo de Correção de Provas
     Route::livewire('/evaluations', 'pages::evaluations.index')->name('evaluations.index');

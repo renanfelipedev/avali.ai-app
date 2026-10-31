@@ -90,7 +90,8 @@
                     <flux:button href="{{ route('students.index', ['criar' => 1]) }}" variant="ghost" class="w-full justify-start" icon="user-plus">Cadastrar Aluno</flux:button>
                     <flux:button href="{{ route('attendance.index', ['nova' => 1]) }}" variant="ghost" class="w-full justify-start" icon="play-circle">Iniciar Chamada</flux:button>
                     <flux:button href="{{ route('users.index') }}" variant="ghost" class="w-full justify-start" icon="users">Gerenciar Usuários</flux:button>
-                    <flux:button href="{{ route('ai-logs.index') }}" variant="ghost" class="w-full justify-start" icon="document-text">Analisar Logs</flux:button>
+                    <flux:button href="{{ route('system-errors.index') }}" variant="ghost" class="w-full justify-start text-rose-600 dark:text-rose-400" icon="exclamation-triangle">Central de Erros</flux:button>
+                    <flux:button href="{{ route('ai-logs.index') }}" variant="ghost" class="w-full justify-start" icon="document-text">Logs da IA</flux:button>
                 </div>
             </flux:card>
         </div>
